@@ -138,6 +138,11 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         } catch (e) { }
     }, [isFlashOn]);
 
+    const handleCameraError = useCallback(() => {
+        setHasError(true);
+        setStatus("Kamera erişim hatası. Lütfen izinleri kontrol edin.");
+    }, []);
+
     const processMRZ = (text: string) => {
         const lines = text.split('\n')
             .map(l => l.replace(/[^A-Z0-9<]/g, '').trim())
@@ -193,10 +198,14 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                 0, 0, targetWidth, targetHeight
             );
 
-            // BARKOD YOLU (Hızlı - Ham Görüntü ile)
+            // OCR YOLU (Otsu Binarizasyon Uygulanmış Görüntüyle)
+            applyOtsuThreshold(ctx, targetWidth, targetHeight);
+            const processedImage = canvas.toDataURL("image/jpeg", 0.9);
+
+            // BARKOD YOLU (Hızlı - İşlenmiş Görüntü ile)
             if (codeReaderRef.current) {
                 try {
-                    const bResult = await codeReaderRef.current.decodeFromCanvas(canvas);
+                    const bResult = await codeReaderRef.current.decodeFromImageUrl(processedImage);
                     const parsed = processMRZ(bResult.getText());
                     if (parsed?.identityNo) {
                         setSuccess(true);
@@ -207,10 +216,7 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                 } catch (e) { }
             }
 
-            // OCR YOLU (Otsu Binarizasyon Uygulanmış Görüntüyle)
-            applyOtsuThreshold(ctx, targetWidth, targetHeight);
-            const processedImage = canvas.toDataURL("image/jpeg", 0.9);
-
+            // OCR YOLU
             if (workerRef.current) {
                 const { data: { text } } = await workerRef.current.recognize(processedImage);
                 const parsed = processMRZ(text);
