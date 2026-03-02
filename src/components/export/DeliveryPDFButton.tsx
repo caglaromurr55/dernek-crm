@@ -4,6 +4,8 @@ import jsPDF from "jspdf";
 import { FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { normalizeTr } from "@/lib/pdf-utils";
+
 
 interface DeliveryPDFButtonProps {
     delivery: any;
@@ -39,20 +41,20 @@ export function DeliveryPDFButton({ delivery, household, applicant }: DeliveryPD
             doc.text("Basvuru Sahibi Bilgileri", 20, 45);
 
             doc.setFontSize(11);
-            doc.text(`Ad Soyad: ${applicant?.firstName} ${applicant?.lastName}`, 20, 55);
+            doc.text(`Ad Soyad: ${normalizeTr(applicant?.firstName)} ${normalizeTr(applicant?.lastName)}`, 20, 55);
             doc.text(`TC Kimlik: ${applicant?.identityNo}`, 20, 62);
             doc.text(`Telefon: ${household.contactNumber}`, 20, 69);
-            doc.text(`Adres: ${household.address}`, 20, 76, { maxWidth: 160 });
+            doc.text(`Adres: ${normalizeTr(household.address)}`, 20, 76, { maxWidth: 160 });
 
             // Delivery Details
             doc.setFontSize(14);
             doc.text("Teslimat Detaylari", 20, 95);
 
             doc.setFontSize(11);
-            doc.text(`Kampanya: ${delivery.distributionEvent.name}`, 20, 105);
+            doc.text(`Kampanya: ${normalizeTr(delivery.distributionEvent.name)}`, 20, 105);
             doc.text(`Durum: ${delivery.status === "DELIVERED" ? "Teslim Edildi" : "Beklemede"}`, 20, 112);
             doc.text(`Teslim Tarihi: ${delivery.deliveredAt ? new Date(delivery.deliveredAt).toLocaleString("tr-TR") : "-"}`, 20, 119);
-            doc.text(`Notlar: ${delivery.notes || "-"}`, 20, 126, { maxWidth: 160 });
+            doc.text(`Notlar: ${normalizeTr(delivery.notes) || "-"}`, 20, 126, { maxWidth: 160 });
 
             // Signature Area
             if (delivery.signatureData) {
