@@ -133,7 +133,7 @@ export default async function DagitimDetayPage({ params }: { params: Promise<{ i
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                event.lists.map((list) => {
+                                event.lists.map((list: any) => {
                                     const listDelivered = list.deliveries.filter((d: any) => d.status === "DELIVERED").length;
                                     const listTotal = list._count.deliveries;
                                     const listPercent = listTotal > 0 ? (listDelivered / listTotal) * 100 : 0;
