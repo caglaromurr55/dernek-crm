@@ -51,35 +51,52 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             .map(l => l.replace(/\s+/g, '').toUpperCase())
             .filter(l => l.length >= 20);
 
+        let identityNo = "";
+        let firstName = "";
+        let lastName = "";
+        let birthDate = "";
+
         try {
             // mrz kütüphanesi ile parse et
             const result = parseMRZDoc(lines);
+            const fields = result.fields;
 
-            if (result.valid) {
-                return {
-                    identityNo: result.fields.documentNumber?.replace(/</g, ''),
-                    firstName: result.fields.firstName,
-                    lastName: result.fields.lastName,
-                    // Doğum tarihi (YYMMDD -> YYYY-MM-DD)
-                    birthDate: result.fields.birthDate ? `19${result.fields.birthDate.substring(0, 2)}-${result.fields.birthDate.substring(2, 4)}-${result.fields.birthDate.substring(4, 6)}` : "",
-                    rawText: text
-                };
+            // Türkiye Kimliğinde (TD1) TC No genellikle optional2 alanında (Line 2, char 19-30) yer alır.
+            // Bazı durumlarda documentNumber da olabilir (Format farklılıkları için).
+            const possibleTCs = [
+                fields.optional2?.replace(/</g, ''),
+                fields.optional1?.replace(/</g, ''),
+                fields.documentNumber?.replace(/</g, '')
+            ];
+
+            const foundTC = possibleTCs.find(tc => tc && tc.length === 11 && /^\d+$/.test(tc));
+            if (foundTC) identityNo = foundTC;
+
+            // İsim ve Soyisim (Valid olmasa bile OCR çoğu karakteri doğru okumuş olabilir)
+            firstName = fields.firstName?.replace(/</g, ' ').trim() || "";
+            lastName = fields.lastName?.replace(/</g, ' ').trim() || "";
+
+            // Doğum Tarihi (YYMMDD -> YYYY-MM-DD)
+            if (fields.birthDate && fields.birthDate.length === 6) {
+                const yearPrefix = parseInt(fields.birthDate.substring(0, 2)) > 50 ? '19' : '20';
+                birthDate = `${yearPrefix}${fields.birthDate.substring(0, 2)}-${fields.birthDate.substring(2, 4)}-${fields.birthDate.substring(4, 6)}`;
             }
         } catch (e) {
             console.error("MRZ Parse hatası:", e);
         }
 
-        // Fallback: Manuel TC yakalama (Okunan metin içinde 11 hane ara)
-        const textWithNumbersMerged = text.toUpperCase().replace(/[OÖD]/g, '0').replace(/[Il]/g, '1').replace(/[SŞ]/g, '5').replace(/[Z]/g, '2');
-        const tcMatch = textWithNumbersMerged.replace(/[^0-9]/g, '').match(/([1-9][0-9]{10})/);
+        // Fallback: Eğer kütüphane TC bulamadıysa raw text içinden 11 hane ara
+        if (!identityNo) {
+            const textWithNumbersMerged = text.toUpperCase()
+                .replace(/[OÖD]/g, '0')
+                .replace(/[Il]/g, '1')
+                .replace(/[SŞ]/g, '5')
+                .replace(/[Z]/g, '2');
+            const tcMatch = textWithNumbersMerged.replace(/[^0-9]/g, '').match(/([1-9][0-9]{10})/);
+            if (tcMatch) identityNo = tcMatch[1];
+        }
 
-        return {
-            identityNo: tcMatch ? tcMatch[1] : "",
-            firstName: "",
-            lastName: "",
-            birthDate: "",
-            rawText: text
-        };
+        return { identityNo, firstName, lastName, birthDate, rawText: text };
     };
 
     const captureAndScan = useCallback(async () => {
