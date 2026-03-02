@@ -34,7 +34,7 @@ export default async function ItemsPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-                {items.map((item) => (
+                {items.map((item: any) => (
                     <Card key={item.id} className="relative overflow-hidden">
                         <div className={`absolute top-0 right-0 p-3 opacity-10`}>
                             <Package className="h-20 w-20" />
@@ -84,7 +84,7 @@ export default async function ItemsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {items.map((item) => (
+                            {items.map((item: any) => (
                                 <TableRow key={item.id} className={item.stock < 50 ? "bg-red-50/30" : ""}>
                                     <TableCell className="font-bold">{item.name}</TableCell>
                                     <TableCell>{item.unit}</TableCell>
