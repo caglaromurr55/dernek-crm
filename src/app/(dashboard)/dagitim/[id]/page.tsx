@@ -53,7 +53,7 @@ export default async function DagitimDetayPage({ params }: { params: Promise<{ i
     }
 
     const totalDeliveries = event.deliveries.length;
-    const totalDelivered = event.deliveries.filter(d => d.status === "DELIVERED").length;
+    const totalDelivered = event.deliveries.filter((d: any) => d.status === "DELIVERED").length;
     const totalProgress = totalDeliveries > 0 ? (totalDelivered / totalDeliveries) * 100 : 0;
 
     return (
@@ -134,7 +134,7 @@ export default async function DagitimDetayPage({ params }: { params: Promise<{ i
                                 </TableRow>
                             ) : (
                                 event.lists.map((list) => {
-                                    const listDelivered = list.deliveries.filter(d => d.status === "DELIVERED").length;
+                                    const listDelivered = list.deliveries.filter((d: any) => d.status === "DELIVERED").length;
                                     const listTotal = list._count.deliveries;
                                     const listPercent = listTotal > 0 ? (listDelivered / listTotal) * 100 : 0;
 
