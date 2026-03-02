@@ -3,7 +3,8 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
 import { createWorker } from "tesseract.js";
-import { Camera, RefreshCw, XCircle } from "lucide-react";
+import { parse as parseMRZDoc } from "mrz";
+import { Camera, RefreshCw, XCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MrzScannerProps {
@@ -45,56 +46,40 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     }, []);
 
     const parseMRZ = (text: string) => {
-        // Tesseract < karakterini farklı harfler gibi algılayabilir
-        const cleanText = text.replace(/[KCEL]/gi, '<').replace(/\s+/g, '');
-        const lines = cleanText.split('\n').filter(l => l.length > 20);
+        // Tesseract'tan gelen metni satırlara böl ve temizle
+        const lines = text.split('\n')
+            .map(l => l.replace(/\s+/g, '').toUpperCase())
+            .filter(l => l.length >= 20);
 
-        let identityNo = "";
-        let birthDate = "";
-        let firstName = "";
-        let lastName = "";
+        try {
+            // mrz kütüphanesi ile parse et
+            const result = parseMRZDoc(lines);
 
-        // OCR karakter hatalarını tolere et (Oluşabilecek sayısal alanlarda)
+            if (result.valid) {
+                return {
+                    identityNo: result.fields.documentNumber?.replace(/</g, ''),
+                    firstName: result.fields.firstName,
+                    lastName: result.fields.lastName,
+                    // Doğum tarihi (YYMMDD -> YYYY-MM-DD)
+                    birthDate: result.fields.birthDate ? `19${result.fields.birthDate.substring(0, 2)}-${result.fields.birthDate.substring(2, 4)}-${result.fields.birthDate.substring(4, 6)}` : "",
+                    rawText: text
+                };
+            }
+        } catch (e) {
+            console.error("MRZ Parse hatası:", e);
+        }
+
+        // Fallback: Manuel TC yakalama (Okunan metin içinde 11 hane ara)
         const textWithNumbersMerged = text.toUpperCase().replace(/[OÖD]/g, '0').replace(/[Il]/g, '1').replace(/[SŞ]/g, '5').replace(/[Z]/g, '2');
-
-        // Serbest metin içinde 11 haneli rakam kalıbını her halükarda yakalamaya çalış
         const tcMatch = textWithNumbersMerged.replace(/[^0-9]/g, '').match(/([1-9][0-9]{10})/);
-        if (tcMatch) {
-            identityNo = tcMatch[1];
-        }
 
-        // TR Kimlik MRZ Formatını (TD1) tespit edelim
-        const line1Idx = lines.findIndex(l => l.includes('I<TUR') || l.includes('IDTUR') || l.includes('TUR'));
-
-        if (line1Idx !== -1 && lines.length > line1Idx + 2) {
-            const l1 = lines[line1Idx];
-            const l2 = lines[line1Idx + 1];
-            const l3 = lines[line1Idx + 2];
-
-            // TC No Line 1'de genelde 15. karakterden itibaren başlar (Eğer yukarıdaki regexle bulamadıysa)
-            if (!identityNo) {
-                const possibleTC = l1.substring(15, 26).replace(/</g, '').replace(/[OÖD\s]/g, '0');
-                if (possibleTC.length === 11 && /^\d+$/.test(possibleTC)) {
-                    identityNo = possibleTC;
-                }
-            }
-
-            // Doğum Tarihi Line 2'de 1-6. karakterler (YYMMDD)
-            const dobStr = l2.substring(0, 6).replace(/[OÖD]/g, '0');
-            if (/^\d{6}$/.test(dobStr)) {
-                const yearPrefix = parseInt(dobStr.substring(0, 2)) > 30 ? '19' : '20';
-                birthDate = `${yearPrefix}${dobStr.substring(0, 2)}-${dobStr.substring(2, 4)}-${dobStr.substring(4, 6)}`;
-            }
-
-            // İsim Soyisim Line 3'te SURNAME<<FIRSTNAME 
-            const nameParts = l3.split('<<');
-            if (nameParts.length >= 2) {
-                lastName = nameParts[0].replace(/</g, ' ').trim();
-                firstName = nameParts[1].replace(/</g, ' ').trim();
-            }
-        }
-
-        return { identityNo, firstName, lastName, birthDate, rawText: text };
+        return {
+            identityNo: tcMatch ? tcMatch[1] : "",
+            firstName: "",
+            lastName: "",
+            birthDate: "",
+            rawText: text
+        };
     };
 
     const captureAndScan = useCallback(async () => {
@@ -104,10 +89,32 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         if (!imageSrc) return;
 
         setIsScanning(true);
-        setStatus("Görsel analiz ediliyor (OCR)...");
+        setStatus("Görüntü iyileştiriliyor...");
         setProgress(0);
 
         try {
+            // Görüntü Ön İşleme (Canvas üzerinde)
+            const img = new Image();
+            img.src = imageSrc;
+            await new Promise(resolve => img.onload = resolve);
+
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d")!;
+
+            // Sadece alt %35'lik kısmı (MRZ bölgesi) alalım (ROI - Region of Interest)
+            const roiHeight = img.height * 0.35;
+            const roiY = img.height * 0.65;
+
+            canvas.width = img.width;
+            canvas.height = roiHeight;
+
+            // Kontrast ve Gri Tonlama filtresi (OCR başarısını artırır)
+            ctx.filter = "grayscale(100%) contrast(250%) brightness(110%)";
+            ctx.drawImage(img, 0, roiY, img.width, roiHeight, 0, 0, img.width, roiHeight);
+
+            const processedImage = canvas.toDataURL("image/jpeg", 0.9);
+
+            setStatus("Metin çözümleniyor (OCR)...");
             const worker = await createWorker('eng', 1, {
                 logger: m => {
                     if (m.status === 'recognizing text') {
@@ -116,21 +123,26 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                 }
             });
 
-            // Sadece gerekli karakterlere odaklanarak tesseractı hızlandır
+            // Sadece MRZ karakterlerine odaklan
             await worker.setParameters({
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<ŞÜÖÇĞIİ',
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
             });
 
-            const { data: { text } } = await worker.recognize(imageSrc);
+            const { data: { text } } = await worker.recognize(processedImage);
             await worker.terminate();
 
             const parsedData = parseMRZ(text);
 
-            if (parsedData.identityNo || parsedData.firstName) {
+            if (parsedData.identityNo) {
                 setStatus("Başarıyla okundu!");
-                onScan(parsedData);
+                onScan({
+                    identityNo: parsedData.identityNo,
+                    firstName: parsedData.firstName || undefined,
+                    lastName: parsedData.lastName || undefined,
+                    birthDate: parsedData.birthDate || undefined
+                });
             } else {
-                setStatus(`TC veya MRZ bilgisi okunamadı. Tekrar deneyiniz. (Bulunan mtn: ${text.substring(0, 15)}...)`);
+                setStatus("Okunamadı. Lütfen kimliği daha yakından ve sabit tutun.");
             }
 
         } catch (error) {
