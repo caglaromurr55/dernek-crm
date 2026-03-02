@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Package, Calendar, ChevronRight, Activity, Clock, CheckCircle2, XCircle } from "lucide-react";

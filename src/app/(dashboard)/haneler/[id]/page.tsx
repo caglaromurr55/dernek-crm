@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import {
@@ -70,6 +71,15 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                                 {status.label}
                             </Badge>
                         </div>
+                        {household.tags && household.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2 mb-1">
+                                {household.tags.map((tag: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                                        {tag}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
                         <p className="text-muted-foreground font-medium flex items-center gap-2">
                             <span className="bg-secondary px-2 py-0.5 rounded text-xs border border-border">#{household.id.slice(0, 8).toUpperCase()}</span>
                             <span>•</span>

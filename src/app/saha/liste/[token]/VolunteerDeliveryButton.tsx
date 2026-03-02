@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { updateVolunteerDeliveryAction } from "@/app/actions/volunteer";
 import SignatureCanvas from 'react-signature-canvas';
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { toast } from "sonner";
 
 interface Props {
@@ -36,8 +36,7 @@ export function VolunteerDeliveryButton({ deliveryId, householdId, allowedIdenti
     // Verification State
     const [tcInput, setTcInput] = useState("");
     const [isScanning, setIsScanning] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+    const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
     // Update Info State
     const [addressInput, setAddressInput] = useState(currentAddress);
@@ -51,43 +50,67 @@ export function VolunteerDeliveryButton({ deliveryId, householdId, allowedIdenti
     const sigPad = useRef<SignatureCanvas>(null);
 
     useEffect(() => {
-        return () => stopScanning();
+        return () => {
+            stopScanning();
+        };
     }, []);
 
-    const stopScanning = () => {
-        if (codeReaderRef.current) {
-            codeReaderRef.current.reset();
+    const stopScanning = async () => {
+        if (html5QrCodeRef.current) {
+            try {
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
+                }
+            } catch (err) {
+                console.error("Kamera durdurma hatası:", err);
+            }
+            html5QrCodeRef.current = null;
         }
         setIsScanning(false);
     };
 
     const startScanning = async () => {
         setErrorMsg("");
-        try {
-            const hints = new Map();
-            hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
-            const codeReader = new BrowserMultiFormatReader(hints);
-            codeReaderRef.current = codeReader;
-            setIsScanning(true);
 
-            setTimeout(async () => {
-                if (!videoRef.current) return;
-                try {
-                    await codeReader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
-                        if (result) {
-                            setTcInput(result.getText());
-                            stopScanning();
-                        }
-                    });
-                } catch (err) {
-                    setErrorMsg("Kamera başlatılamadı.");
-                    stopScanning();
-                }
-            }, 500);
-        } catch (err) {
-            setErrorMsg("Barkod okuyucu başlatılamadı.");
-            setIsScanning(false);
+        if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
+            setErrorMsg("Hata: Kamera erişimi sadece güvenli (HTTPS) bağlantılarda mevcuttur. Lütfen sitenizin SSL sertifikasını kontrol edin.");
+            return;
         }
+
+        setIsScanning(true);
+
+        setTimeout(async () => {
+            try {
+                const element = document.getElementById("volunteer-barcode-reader");
+                if (!element) return;
+
+                if (html5QrCodeRef.current) {
+                    await stopScanning();
+                }
+
+                html5QrCodeRef.current = new Html5Qrcode("volunteer-barcode-reader");
+
+                const config = {
+                    fps: 15,
+                    qrbox: { width: 300, height: 200 },
+                    aspectRatio: 1.0
+                };
+
+                await html5QrCodeRef.current.start(
+                    { facingMode: "environment" },
+                    config,
+                    (decodedText) => {
+                        setTcInput(decodedText.trim());
+                        stopScanning();
+                    },
+                    () => { }
+                );
+            } catch (err) {
+                console.error(err);
+                setErrorMsg("Kamera başlatılamadı.");
+                setIsScanning(false);
+            }
+        }, 600);
     };
 
     const handleVerifySubmit = (e: React.FormEvent) => {
@@ -188,9 +211,9 @@ export function VolunteerDeliveryButton({ deliveryId, householdId, allowedIdenti
                     {step === "VERIFICATION" && (
                         <form onSubmit={handleVerifySubmit} className="space-y-5 pt-4">
                             {isScanning ? (
-                                <div className="space-y-2 relative border-2 border-zinc-200 rounded-3xl overflow-hidden bg-black flex justify-center w-full aspect-square">
-                                    <video ref={videoRef} className="h-full w-full object-cover" />
-                                    <Button type="button" size="icon" variant="destructive" className="absolute top-4 right-4 rounded-full h-10 w-10 shadow-lg" onClick={stopScanning}>
+                                <div className="space-y-2 relative border-2 border-zinc-200 rounded-3xl overflow-hidden bg-black flex justify-center w-full aspect-square md:aspect-video">
+                                    <div id="volunteer-barcode-reader" className="h-full w-full" />
+                                    <Button type="button" size="icon" variant="destructive" className="absolute top-4 right-4 rounded-full h-10 w-10 shadow-lg z-20" onClick={() => stopScanning()}>
                                         <X className="h-5 w-5" />
                                     </Button>
                                 </div>

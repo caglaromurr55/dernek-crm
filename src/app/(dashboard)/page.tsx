@@ -1,9 +1,11 @@
+export const dynamic = "force-dynamic";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Users, AlertTriangle, PackageCheck, TrendingUp, HandHeart, Calendar, ArrowRight, UserPlus, MapPin, Activity } from "lucide-react";
 import prisma from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PredictiveChart } from "@/components/PredictiveChart";
 
 export default async function Home() {
   const [
@@ -72,6 +74,11 @@ export default async function Home() {
       </div>
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
+        {/* Tahmine Dayalı Analiz */}
+        <div className="lg:col-span-12">
+          <PredictiveChart />
+        </div>
+
         {/* Son Kayıtlar */}
         <Card className="lg:col-span-12 glass-card border-0 shadow-2xl overflow-hidden">
           <CardHeader className="bg-secondary/30 pb-6 border-b border-border flex flex-row items-center justify-between space-y-0">

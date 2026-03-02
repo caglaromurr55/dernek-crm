@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect } from "react";
-import Webcam from "react-webcam";
-import { createWorker } from "tesseract.js";
-import { Camera, RefreshCw, XCircle } from "lucide-react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { Html5Qrcode } from "html5-qrcode";
+import { XCircle, CheckCircle2, Scan, RefreshCw, Barcode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MrzScannerProps {
@@ -17,163 +16,130 @@ interface MrzScannerProps {
 }
 
 export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
-    const webcamRef = useRef<Webcam>(null);
-    const [isScanning, setIsScanning] = useState(false);
-    const [status, setStatus] = useState("Kamera başlatılıyor...");
-    const [progress, setProgress] = useState(0);
+    const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+    const [statusText, setStatusText] = useState("Kamera başlatılıyor...");
+    const [isScanning, setIsScanning] = useState(true);
+    const [success, setSuccess] = useState(false);
 
-    const parseMRZ = (text: string) => {
-        // Tesseract < karakterini farklı harfler gibi algılayabilir
-        const cleanText = text.replace(/[KCEL]/gi, '<').replace(/\s+/g, '');
-        const lines = cleanText.split('\n').filter(l => l.length > 20);
-
-        let identityNo = "";
-        let birthDate = "";
-        let firstName = "";
-        let lastName = "";
-
-        // OCR karakter hatalarını tolere et (Oluşabilecek sayısal alanlarda)
-        const textWithNumbersMerged = text.toUpperCase().replace(/[OÖD]/g, '0').replace(/[Il]/g, '1').replace(/[SŞ]/g, '5').replace(/[Z]/g, '2');
-
-        // Serbest metin içinde 11 haneli rakam kalıbını her halükarda yakalamaya çalış
-        const tcMatch = textWithNumbersMerged.replace(/[^0-9]/g, '').match(/([1-9][0-9]{10})/);
-        if (tcMatch) {
-            identityNo = tcMatch[1];
-        }
-
-        // TR Kimlik MRZ Formatını (TD1) tespit edelim
-        const line1Idx = lines.findIndex(l => l.includes('I<TUR') || l.includes('IDTUR') || l.includes('TUR'));
-
-        if (line1Idx !== -1 && lines.length > line1Idx + 2) {
-            const l1 = lines[line1Idx];
-            const l2 = lines[line1Idx + 1];
-            const l3 = lines[line1Idx + 2];
-
-            // TC No Line 1'de genelde 15. karakterden itibaren başlar (Eğer yukarıdaki regexle bulamadıysa)
-            if (!identityNo) {
-                const possibleTC = l1.substring(15, 26).replace(/</g, '').replace(/[OÖD\s]/g, '0');
-                if (possibleTC.length === 11 && /^\d+$/.test(possibleTC)) {
-                    identityNo = possibleTC;
+    const stopCamera = useCallback(async () => {
+        if (html5QrCodeRef.current) {
+            try {
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
                 }
+            } catch (err) {
+                console.error("Kamera durdurma hatası:", err);
             }
-
-            // Doğum Tarihi Line 2'de 1-6. karakterler (YYMMDD)
-            const dobStr = l2.substring(0, 6).replace(/[OÖD]/g, '0');
-            if (/^\d{6}$/.test(dobStr)) {
-                const yearPrefix = parseInt(dobStr.substring(0, 2)) > 30 ? '19' : '20';
-                birthDate = `${yearPrefix}${dobStr.substring(0, 2)}-${dobStr.substring(2, 4)}-${dobStr.substring(4, 6)}`;
-            }
-
-            // İsim Soyisim Line 3'te SURNAME<<FIRSTNAME 
-            const nameParts = l3.split('<<');
-            if (nameParts.length >= 2) {
-                lastName = nameParts[0].replace(/</g, ' ').trim();
-                firstName = nameParts[1].replace(/</g, ' ').trim();
-            }
+            html5QrCodeRef.current = null;
         }
-
-        return { identityNo, firstName, lastName, birthDate, rawText: text };
-    };
-
-    const captureAndScan = useCallback(async () => {
-        if (!webcamRef.current) return;
-
-        const imageSrc = webcamRef.current.getScreenshot();
-        if (!imageSrc) return;
-
-        setIsScanning(true);
-        setStatus("Görsel analiz ediliyor (OCR)...");
-        setProgress(0);
-
-        try {
-            const worker = await createWorker('eng', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        setProgress(Math.floor(m.progress * 100));
-                    }
-                }
-            });
-
-            // Sadece gerekli karakterlere odaklanarak tesseractı hızlandır
-            await worker.setParameters({
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<ŞÜÖÇĞIİ',
-            });
-
-            const { data: { text } } = await worker.recognize(imageSrc);
-            await worker.terminate();
-
-            const parsedData = parseMRZ(text);
-
-            if (parsedData.identityNo || parsedData.firstName) {
-                setStatus("Başarıyla okundu!");
-                onScan(parsedData);
-            } else {
-                setStatus(`TC veya MRZ bilgisi okunamadı. Tekrar deneyiniz. (Bulunan mtn: ${text.substring(0, 15)}...)`);
-            }
-
-        } catch (error) {
-            console.error("Tarama hatası:", error);
-            setStatus("Tarama sırasında bir hata oluştu.");
-        } finally {
-            setIsScanning(false);
-        }
-    }, [webcamRef, onScan]);
-
-    useEffect(() => {
-        // Component yüklendiğinde kameranın hazır olması için kısa bir bekleme
-        const timer = setTimeout(() => setStatus("Kimlik kartının arka yüzünü (Barkodlu alan) kameraya tutun."), 1500);
-        return () => clearTimeout(timer);
+        setIsScanning(false);
     }, []);
 
+    const startCamera = useCallback(async () => {
+        setIsScanning(true);
+        setStatusText("Kamera hazırlanıyor...");
+
+        // Render için küçük bir gecikme
+        setTimeout(async () => {
+            const element = document.getElementById("mrz-barcode-reader");
+            if (!element) {
+                console.error("mrz-barcode-reader elementi bulunamadı");
+                return;
+            }
+
+            try {
+                if (html5QrCodeRef.current) {
+                    await stopCamera();
+                }
+
+                html5QrCodeRef.current = new Html5Qrcode("mrz-barcode-reader", { verbose: false });
+
+                const config = {
+                    fps: 20,
+                    qrbox: { width: 300, height: 150 },
+                    aspectRatio: 1.0
+                };
+
+                setStatusText("Kimliğin arkasındaki barkodu gösterin.");
+
+                await html5QrCodeRef.current.start(
+                    { facingMode: "environment" },
+                    config,
+                    (decodedText) => {
+                        // Sadece sayısal karakterleri al ve 11 hane mi kontrol et
+                        const cleanTc = decodedText.trim().replace(/\D/g, '');
+                        if (cleanTc.length === 11) {
+                            if (navigator.vibrate) navigator.vibrate(200);
+                            setSuccess(true);
+                            setStatusText("Barkod Okundu!");
+                            stopCamera();
+                            onScan({ identityNo: cleanTc });
+                        } else {
+                            setStatusText("Barkod algılandı ama 11 hane bulunamadı.");
+                        }
+                    },
+                    () => { } // Hataları sessizce geç
+                );
+            } catch (err: any) {
+                console.error("Kamera başlatılamadı:", err);
+                setStatusText("Hata: Kamera başlatılamadı.");
+                setIsScanning(false);
+            }
+        }, 300);
+    }, [stopCamera, onScan]);
+
+    useEffect(() => {
+        startCamera();
+        return () => {
+            stopCamera();
+        };
+    }, [startCamera, stopCamera]);
+
     return (
-        <div className="flex flex-col items-center space-y-4 p-4">
-            <div className="relative w-full max-w-sm rounded-lg overflow-hidden border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-black">
-                <Webcam
-                    audio={false}
-                    ref={webcamRef}
-                    screenshotFormat="image/jpeg"
-                    videoConstraints={{ facingMode: "environment" }}
-                    className="w-full h-auto object-cover opacity-80"
-                />
+        <div className="flex flex-col items-center space-y-6 p-6 max-w-lg mx-auto bg-card rounded-[3rem] shadow-2xl border-4 border-primary/10">
+            <div className={`relative w-full aspect-[4/3] rounded-[2.5rem] overflow-hidden border-4 transition-all duration-500 ${success ? 'border-emerald-500 shadow-[0_0_80px_rgba(16,185,129,0.3)]' : 'border-zinc-800'} bg-black`}>
+                <div id="mrz-barcode-reader" className="w-full h-full" />
 
-                {/* Kamera Kılavuz Çizgileri */}
-                <div className="absolute inset-0 border-4 border-emerald-500/50 m-8 rounded-md flex items-center justify-center pointer-events-none">
-                    <div className="w-full h-1/3 bg-emerald-500/20 top-2/3 absolute border-t border-emerald-500/50 flex items-center justify-center">
-                        <span className="text-white text-xs font-semibold uppercase bg-black/50 px-2 py-1 rounded">
-                            MRZ Bölgesi
-                        </span>
+                {!success && isScanning && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+                        {/* Target area for PDF417 - Wide and short like qrbox */}
+                        <div className="w-[300px] h-[150px] border-2 border-emerald-400/60 rounded-xl relative bg-emerald-500/5 backdrop-blur-[1px]">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
+                        </div>
+                        <div className="mt-8 bg-black/60 px-4 py-2 rounded-full border border-emerald-500/30 backdrop-blur-md">
+                            <p className="text-[10px] text-emerald-400 font-black tracking-widest uppercase">
+                                BARKODU BURAYA HİZALAYIN
+                            </p>
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {isScanning && (
-                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 transition-all">
-                        <RefreshCw className="h-10 w-10 text-emerald-500 animate-spin mb-4" />
-                        <p className="text-emerald-500 font-medium">Analiz ediliyor: %{progress}</p>
+                {success && (
+                    <div className="absolute inset-0 bg-emerald-600/90 backdrop-blur-2xl flex flex-col items-center justify-center z-50 animate-in fade-in zoom-in duration-500">
+                        <div className="bg-white rounded-full p-6 mb-6 shadow-4xl animate-bounce">
+                            <CheckCircle2 className="h-16 w-16 text-emerald-600" />
+                        </div>
+                        <h2 className="text-3xl font-black text-white tracking-tighter">BAŞARILI!</h2>
+                        <p className="text-emerald-100 font-bold opacity-80 uppercase tracking-widest text-[10px] mt-2">TC Kimlik No Alındı</p>
                     </div>
                 )}
             </div>
 
-            <div className="text-center w-full">
-                <p className={`text-sm mb-4 ${status.includes("hata") || status.includes("algılanamadı") ? 'text-red-500' : 'text-muted-foreground'}`}>
-                    {status}
-                </p>
-                <div className="flex gap-4 justify-center">
-                    <Button variant="outline" onClick={onClose} disabled={isScanning}>
-                        İptal
-                    </Button>
-                    <Button
-                        onClick={captureAndScan}
-                        className="bg-emerald-600 hover:bg-emerald-700"
-                        disabled={isScanning}
-                    >
-                        {isScanning ? (
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Camera className="mr-2 h-4 w-4" />
-                        )}
-                        Tara
-                    </Button>
+            <div className="w-full space-y-4 text-center">
+                <div className={`p-6 rounded-[2rem] border-2 transition-all duration-300 ${success ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'}`}>
+                    <div className="flex items-center justify-center gap-3">
+                        {!success && <Barcode className="w-5 h-5 text-primary animate-pulse" />}
+                        <p className={`text-sm font-black tracking-tight uppercase ${success ? 'text-emerald-500' : 'text-zinc-500'}`}>
+                            {statusText}
+                        </p>
+                    </div>
                 </div>
+
+                {!success && (
+                    <Button variant="ghost" onClick={onClose} className="w-full rounded-2xl text-zinc-400 font-black h-12 uppercase tracking-[0.2em] text-[10px]">
+                        Tarayıcıyı Kapat
+                    </Button>
+                )}
             </div>
         </div>
     );

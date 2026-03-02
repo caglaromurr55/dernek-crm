@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { completeDeliveryAction } from "@/app/actions/delivery";
 import SignatureCanvas from 'react-signature-canvas';
-import { BrowserMultiFormatReader } from "@zxing/library";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { toast } from "sonner";
 
 export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deliveryId: string, allowedIdentities: string[] }) {
@@ -28,8 +28,7 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
     // Verification State
     const [tcInput, setTcInput] = useState("");
     const [isScanning, setIsScanning] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+    const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
     // Signature State
     const sigPad = useRef<SignatureCanvas>(null);
@@ -41,44 +40,57 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
         };
     }, []);
 
-    const stopScanning = () => {
-        if (codeReaderRef.current) {
-            codeReaderRef.current.reset();
+    const stopScanning = async () => {
+        if (html5QrCodeRef.current) {
+            try {
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
+                }
+            } catch (err) {
+                console.error("Kamera durdurma hatası:", err);
+            }
+            html5QrCodeRef.current = null;
         }
         setIsScanning(false);
     };
 
     const startScanning = async () => {
         setErrorMsg("");
-        try {
-            const codeReader = new BrowserMultiFormatReader();
-            codeReaderRef.current = codeReader;
+        setIsScanning(true);
 
-            setIsScanning(true);
+        // Div render olmasını bekleyelim
+        setTimeout(async () => {
+            try {
+                const element = document.getElementById("delivery-barcode-reader");
+                if (!element) return;
 
-            // Wait for video element to be available
-            setTimeout(async () => {
-                if (!videoRef.current) return;
-                try {
-                    await codeReader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
-                        if (result) {
-                            const scannedText = result.getText();
-                            setTcInput(scannedText);
-                            stopScanning();
-                        }
-                    });
-                } catch (err) {
-                    console.error(err);
-                    setErrorMsg("Kamera başlatılamadı. Lütfen izinleri kontrol edin.");
-                    stopScanning();
+                if (html5QrCodeRef.current) {
+                    await stopScanning();
                 }
-            }, 500);
 
-        } catch (err) {
-            console.error(err);
-            setErrorMsg("Barkod okuyucu başlatılamadı.");
-            setIsScanning(false);
-        }
+                html5QrCodeRef.current = new Html5Qrcode("delivery-barcode-reader");
+
+                const config = {
+                    fps: 15,
+                    qrbox: { width: 250, height: 150 },
+                    aspectRatio: 1.0
+                };
+
+                await html5QrCodeRef.current.start(
+                    { facingMode: "environment" },
+                    config,
+                    (decodedText) => {
+                        setTcInput(decodedText.trim());
+                        stopScanning();
+                    },
+                    () => { }
+                );
+            } catch (err) {
+                console.error(err);
+                setErrorMsg("Kamera başlatılamadı. Lütfen izinleri ve SSL bağlantısını kontrol edin.");
+                setIsScanning(false);
+            }
+        }, 600);
     };
 
     const handleVerifySubmit = (e: React.FormEvent) => {
@@ -187,8 +199,8 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
 
                             {isScanning ? (
                                 <div className="space-y-2 relative border rounded-lg overflow-hidden bg-black flex justify-center w-full aspect-video">
-                                    <video ref={videoRef} className="h-full w-full object-cover" />
-                                    <Button type="button" size="icon" variant="destructive" className="absolute top-2 right-2 rounded-full h-8 w-8" onClick={stopScanning}>
+                                    <div id="delivery-barcode-reader" className="h-full w-full" />
+                                    <Button type="button" size="icon" variant="destructive" className="absolute top-2 right-2 rounded-full h-8 w-8 z-20" onClick={() => stopScanning()}>
                                         <X className="h-4 w-4" />
                                     </Button>
                                 </div>

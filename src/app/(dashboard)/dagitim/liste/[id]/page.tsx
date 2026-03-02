@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Phone, User as UserIcon, CheckCircle2, AlertTriangle } from "lucide-react";
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import { DistributionListPDFButton } from "@/components/export/DistributionListP
 export default async function ListeDetayPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
-    const list = await prisma.distributionList.findUnique({
+    const list: any = await prisma.distributionList.findUnique({
         where: { id },
         include: {
             distributionEvent: {
@@ -45,7 +46,7 @@ export default async function ListeDetayPage({ params }: { params: Promise<{ id:
         notFound();
     }
 
-    const deliveredCount = list.deliveries.filter(d => d.status === "DELIVERED").length;
+    const deliveredCount = list.deliveries.filter((d: any) => d.status === "DELIVERED").length;
     const totalCount = list.deliveries.length;
     const progressPercent = totalCount > 0 ? (deliveredCount / totalCount) * 100 : 0;
 
@@ -127,7 +128,7 @@ export default async function ListeDetayPage({ params }: { params: Promise<{ id:
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            list.deliveries.map((delivery) => {
+                            list.deliveries.map((delivery: any) => {
                                 const applicant = delivery.household.persons[0];
                                 return (
                                     <TableRow key={delivery.id} className="group hover:bg-secondary/50 transition-all border-border/50">

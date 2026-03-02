@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { BrowserMultiFormatReader, NotFoundException, BarcodeFormat, DecodeHintType } from "@zxing/library";
-import { Search, XCircle, RefreshCw, HandHeart, Clock, ThumbsUp, XOctagon } from "lucide-react";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Search, XCircle, RefreshCw, HandHeart, Clock, ThumbsUp, XOctagon, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { queryPersonByBarcode } from "@/app/actions/query";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +21,7 @@ interface BarcodeQueryModalProps {
 }
 
 export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+    const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const [statusText, setStatusText] = useState("Kamera başlatılıyor...");
     const [isScanning, setIsScanning] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
@@ -31,84 +30,69 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
     const [result, setResult] = useState<any>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const stopCamera = useCallback(() => {
-        if (codeReaderRef.current) {
-            codeReaderRef.current.reset();
+    const stopCamera = useCallback(async () => {
+        if (html5QrCodeRef.current) {
+            try {
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
+                }
+            } catch (err) {
+                console.error("Kamera durdurma hatası:", err);
+            }
+            html5QrCodeRef.current = null;
         }
+        setIsScanning(false);
     }, []);
 
     const startCamera = useCallback(async () => {
         setResult(null);
         setErrorMsg(null);
         setIsScanning(true);
-        setStatusText("Barkodu (Code128) kameraya tutun.");
+        setStatusText("Kamera hazırlanıyor...");
 
-        if (!codeReaderRef.current) {
-            const hints = new Map();
-            hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
-            codeReaderRef.current = new BrowserMultiFormatReader(hints);
-        }
-
-        try {
-            const videoInputDevices = await codeReaderRef.current.listVideoInputDevices();
-            if (videoInputDevices.length === 0) {
-                setStatusText("Hata: Kullanılabilir kamera bulunamadı.");
+        // Div'in render edilmesini bekleyelim
+        setTimeout(async () => {
+            const element = document.getElementById("barcode-reader");
+            if (!element) {
+                console.error("barcode-reader elementi bulunamadı");
                 return;
             }
 
-            // Öncelikli olarak cihazdaki arka kamerayı bulalım
-            let selectedDeviceId: string | null = null;
-            if (videoInputDevices.length > 0) {
-                const backCamera = videoInputDevices.find(
-                    d => d.label.toLowerCase().includes('back') ||
-                        d.label.toLowerCase().includes('arka') ||
-                        d.label.toLowerCase().includes('environment')
-                );
-                selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-            }
+            try {
+                if (html5QrCodeRef.current) {
+                    await stopCamera();
+                }
 
-            // decodeFromVideoDevice Promise döndürür (veya callback tetikler), hataları catch ile yakalayalım
-            codeReaderRef.current.decodeFromVideoDevice(
-                selectedDeviceId,
-                videoRef.current,
-                async (resultItem, err) => {
-                    if (resultItem) {
-                        const rawText = resultItem.getText().trim();
-                        const cleanTc = rawText.replace(/\D/g, '');
+                html5QrCodeRef.current = new Html5Qrcode("barcode-reader", { verbose: false });
 
+                const config = {
+                    fps: 15,
+                    qrbox: { width: 280, height: 160 },
+                    aspectRatio: 1.0 // Kareye yakın daha stabil olabilir
+                };
+
+                setStatusText("Barkodu kameraya tutun.");
+                await html5QrCodeRef.current.start(
+                    { facingMode: "environment" },
+                    config,
+                    (decodedText) => {
+                        const cleanTc = decodedText.trim().replace(/\D/g, '');
                         if (cleanTc.length === 11) {
                             stopCamera();
-                            setIsScanning(false);
                             handleBarcodeQuery(cleanTc);
                         } else {
-                            setStatusText(`Hata: Okunan kod 11 haneli değil. (Okunan: ${rawText})`);
+                            setStatusText(`Hata: 11 hane bulunamadı. (${decodedText})`);
                         }
-                    }
-
-                    if (err && !(err instanceof NotFoundException)) {
-                        console.error("Tarama hatası (Sessizce yoksayılabilir):", err);
-                    }
-                }
-            ).catch((err: any) => {
-                console.error("Kamera başlatılamadı (Örn: NotReadableError):", err);
-                if (err.name === 'NotReadableError') {
-                    setStatusText("Hata: Kamera başlatılamadı (Hata Kodu: NotReadableError).");
-                    setErrorMsg("Kamera şu anda başka bir sekme veya uygulama tarafından kullanılıyor olabilir. Lütfen kamerayı kullanan diğer pencereleri kapatıp tekrar deneyin.");
-                } else if (err.name === 'NotAllowedError') {
-                    setStatusText("Hata: Kamera izni verilmedi.");
-                    setErrorMsg("Tarayıcınızın kamera erişimine izin vermediğiniz için işlem yapılamıyor.");
-                } else {
-                    setStatusText(`Hata: Kamera başlatılamadı (${err.message || err.name}).`);
-                    setErrorMsg("Cihaz cihaz kamerasına erişemedi. Lütfen donanımınızı ve tarayıcı izinlerinizi kontrol edin.");
-                }
+                    },
+                    () => { }
+                );
+            } catch (err: any) {
+                console.error("Kamera başlatılamadı:", err);
+                setStatusText("Hata: Kamera başlatılamadı.");
+                setErrorMsg("Kameraya erişilemedi. Lütfen izinleri ve HTTPS bağlantısını kontrol edin.");
                 setIsScanning(false);
-            });
-        } catch (err: any) {
-            console.error("Kamera başlatılırken genel hata oluştu:", err);
-            setStatusText("Hata: Kameraya erişilemedi.");
-            setErrorMsg(err.message || "Kamera aygıtlarına ulaşılamadı. Cihazınızda takılı bir kamera olduğundan emin olun.");
-            setIsScanning(false);
-        }
+            }
+        }, 600);
     }, [stopCamera]);
 
     useEffect(() => {
@@ -170,16 +154,14 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
                     {/* Kamera Ekranı (Eğer hala taranıyorsa) */}
                     {isScanning && (
                         <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border-2 border-zinc-700">
-                            <video
-                                ref={videoRef}
-                                className="w-full h-full object-cover"
-                                muted
-                                playsInline
-                            />
+                            <div id="barcode-reader" className="w-full h-full" />
+
                             {/* Hizalama Rehberi */}
-                            <div className="absolute inset-x-8 inset-y-12 border-2 border-emerald-500 rounded bg-emerald-500/10 z-10 pointers-none flex items-center justify-center">
-                                <div className="w-full h-[2px] bg-red-500/80 absolute top-1/2"></div>
-                            </div>
+                            {!isLoading && (
+                                <div className="absolute inset-x-8 inset-y-12 border-2 border-emerald-500 rounded bg-emerald-500/10 z-10 pointer-events-none flex items-center justify-center">
+                                    <div className="w-full h-[2px] bg-red-500/80 absolute top-1/2"></div>
+                                </div>
+                            )}
                         </div>
                     )}
 

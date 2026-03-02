@@ -5,16 +5,12 @@ import { CheckCircle2, Navigation, Phone, MapPin, Map, PackageCheck, AlertTriang
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { VolunteerDeliveryButton } from "./VolunteerDeliveryButton";
+import { MapModalButton } from "@/components/MapModalButton";
 
 export function VolunteerDeliveryItem({ delivery }: { delivery: any }) {
     const household = delivery.household;
     const applicant = household.persons.find((p: any) => p.isApplicant) || household.persons[0];
     const isCompleted = delivery.status !== "PENDING";
-
-    const getGoogleMapsUrl = () => {
-        const query = encodeURIComponent(`${household.address}`);
-        return `https://www.google.com/maps/search/?api=1&query=${query}`;
-    };
 
     return (
         <div className={`p-4 rounded-3xl border transition-all ${isCompleted ? 'bg-secondary/30 border-secondary opacity-75' : 'bg-white border-zinc-200 shadow-xl shadow-zinc-200/40'}`}>
@@ -46,15 +42,9 @@ export function VolunteerDeliveryItem({ delivery }: { delivery: any }) {
                         <Phone className="w-4 h-4" />
                         {household.contactNumber || "Tel Yok"}
                     </a>
-                    <a
-                        href={getGoogleMapsUrl()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-bold border transition-colors ${isCompleted ? 'border-zinc-200 text-zinc-500' : 'border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50'}`}
-                    >
-                        <Map className="w-4 h-4 text-emerald-600" />
-                        Harita
-                    </a>
+                    <div className="flex-1">
+                        <MapModalButton address={household.address} isCompleted={isCompleted} />
+                    </div>
                 </div>
             </div>
 

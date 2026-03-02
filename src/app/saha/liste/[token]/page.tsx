@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { ClaimForm } from "./ClaimForm";
@@ -96,12 +97,12 @@ export default async function VolunteerTokenPage({ params }: { params: Promise<{
                 <div className="flex justify-between items-end mb-4 px-2">
                     <div>
                         <h2 className="text-sm font-black text-zinc-800 uppercase tracking-widest">{list.name}</h2>
-                        <p className="text-xs text-zinc-500 mt-1 font-medium">{list.deliveries.filter(d => d.status === "DELIVERED").length} / {list.deliveries.length} Teslimat</p>
+                        <p className="text-xs text-zinc-500 mt-1 font-medium">{list.deliveries.filter((d: any) => d.status === "DELIVERED").length} / {list.deliveries.length} Teslimat</p>
                     </div>
                 </div>
 
                 <div className="space-y-4">
-                    {list.deliveries.map((delivery) => (
+                    {list.deliveries.map((delivery: any) => (
                         <VolunteerDeliveryItem key={delivery.id} delivery={delivery} />
                     ))}
                 </div>

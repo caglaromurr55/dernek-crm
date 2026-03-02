@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -84,7 +85,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    item.inventories.map((inv) => (
+                                    item.inventories.map((inv: any) => (
                                         <TableRow key={inv.id} className="hover:bg-secondary/50">
                                             <TableCell className="pl-6 text-muted-foreground whitespace-nowrap">
                                                 {inv.createdAt.toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}
