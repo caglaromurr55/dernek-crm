@@ -4,7 +4,8 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
 import { createWorker } from "tesseract.js";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
-import { RefreshCw, XCircle, CheckCircle2, Scan, Flashlight, FlashlightOff } from "lucide-react";
+import { parse as parseMRZ } from "mrz";
+import { RefreshCw, XCircle, CheckCircle2, Scan, Flashlight, FlashlightOff, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MrzScannerProps {
@@ -21,6 +22,7 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     const webcamRef = useRef<Webcam>(null);
     const workerRef = useRef<any>(null);
     const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+    const isBusy = useRef(false);
 
     const [isScanning, setIsScanning] = useState(false);
     const [status, setStatus] = useState("Sistem hazırlanıyor...");
@@ -28,12 +30,12 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     const [success, setSuccess] = useState(false);
     const [lastTC, setLastTC] = useState("");
     const [isFlashOn, setIsFlashOn] = useState(false);
-    const [filterIndex, setFilterIndex] = useState(0); // 0: Normal, 1: High Contrast, 2: Sharp
+    const [filterIndex, setFilterIndex] = useState(0);
 
     // Initialize Tesseract and ZXing
     const initScanner = useCallback(async () => {
         try {
-            // Tesseract OCR
+            // Tesseract OCR - Mode 6 for structured text
             const worker = await (createWorker as any)('eng', 1);
             if (worker.setParameters) {
                 await worker.setParameters({
@@ -43,12 +45,12 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             }
             workerRef.current = worker;
 
-            // ZXing Barcode (PDF417 focus)
+            // ZXing Barcode
             const hints = new Map();
             hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.PDF_417, BarcodeFormat.QR_CODE]);
             codeReaderRef.current = new BrowserMultiFormatReader(hints);
 
-            setStatus("Kimliği çerçeveye hizalayın.");
+            setStatus("Kimliğin arka yüzünü (yazılı taraf) çerçeveye iyice yaklaştırın.");
             setIsScanning(true);
         } catch (error) {
             console.error("Başlatma hatası:", error);
@@ -64,23 +66,14 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         };
     }, [initScanner]);
 
-    // Flashlight (Torch) Control
     const toggleFlash = useCallback(async () => {
         if (!webcamRef.current || !webcamRef.current.video) return;
-
         const stream = webcamRef.current.video.srcObject as MediaStream;
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities() as any;
-
-        if (!capabilities.torch) {
-            setStatus("Bu cihazda flaş desteği bulunamadı.");
-            return;
-        }
-
+        if (!capabilities.torch) return;
         try {
-            await track.applyConstraints({
-                advanced: [{ torch: !isFlashOn }]
-            } as any);
+            await track.applyConstraints({ advanced: [{ torch: !isFlashOn }] } as any);
             setIsFlashOn(!isFlashOn);
         } catch (e) {
             console.error("Flash error:", e);
@@ -92,193 +85,200 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         setStatus("Kamera erişim hatası.");
     }, []);
 
-    const parseRawText = (text: string) => {
-        const normalized = text.toUpperCase()
-            .replace(/[ \n\r]/g, '')
-            .replace(/O/g, '0')
-            .replace(/[IL]/g, '1')
-            .replace(/S/g, '5')
-            .replace(/B/g, '8');
+    const processMRZResult = (text: string) => {
+        // OCR metnini satırlara böl ve temizle
+        const lines = text.split('\n')
+            .map(l => l.replace(/[^A-Z0-9<]/g, '').trim())
+            .filter(l => l.length >= 10);
 
-        let identityNo = "";
-        let firstName = "";
-        let lastName = "";
-        let birthDate = "";
+        if (lines.length < 3) return null;
 
-        // TC Number (11 digits)
+        try {
+            // "mrz" kütüphanesi ile doğrula ve ayrıştır
+            const result = parseMRZ(lines);
+            if (result && result.valid) {
+                const fields = (result as any).fields;
+                return {
+                    identityNo: fields.documentNumber || fields.personalNumber,
+                    firstName: fields.firstName,
+                    lastName: fields.lastName,
+                    birthDate: fields.birthDate ? `19${fields.birthDate.substring(0, 2)}-${fields.birthDate.substring(2, 4)}-${fields.birthDate.substring(4, 6)}` : undefined
+                };
+            }
+        } catch (e) {
+            // Library parsing failed, try manual fallback
+        }
+
+        // Manual Fallback (Regex)
+        const normalized = text.toUpperCase().replace(/[^A-Z0-9<]/g, '');
         const tcMatch = normalized.match(/[1-9][0-9]{10}/);
-        if (tcMatch) identityNo = tcMatch[0];
-
-        // MRZ Line Split for Names
-        const lines = text.split('\n').map(l => l.replace(/[^A-Z0-9<]/g, ''));
-        const lineWithNames = lines.find(l => l.includes('<<'));
-        if (lineWithNames) {
-            const parts = lineWithNames.split('<<');
-            lastName = parts[0].replace(/</g, ' ').trim();
-            firstName = parts[1]?.split('<')[0].replace(/</g, ' ').trim() || "";
+        if (tcMatch) {
+            return { identityNo: tcMatch[0] };
         }
 
-        // Birth Date (TUR pattern in MRZ)
-        const dobMatch = normalized.match(/TUR([0-9]{6})/);
-        if (dobMatch) {
-            const dob = dobMatch[1];
-            const yearPrefix = parseInt(dob.substring(0, 2)) > 50 ? '19' : '20';
-            birthDate = `${yearPrefix}${dob.substring(0, 2)}-${dob.substring(2, 4)}-${dob.substring(4, 6)}`;
-        }
-
-        return { identityNo, firstName, lastName, birthDate };
+        return null;
     };
 
     const performScan = useCallback(async () => {
-        if (!webcamRef.current || !webcamRef.current.video || !isScanning || success) return;
+        if (!webcamRef.current || !webcamRef.current.video || !isScanning || success || isBusy.current) return;
 
-        const imageSrc = webcamRef.current.getScreenshot();
-        if (!imageSrc) return;
+        const video = webcamRef.current.video;
+        if (video.readyState !== 4) return;
+
+        isBusy.current = true;
 
         try {
-            const img = new Image();
-            img.src = imageSrc;
-            await new Promise(resolve => img.onload = resolve);
-
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d")!;
 
-            // Hibrit ROI: Kartın alt yarısını (hem MRZ hem Barkod alanı) kapsayalım
-            const roiHeight = img.height * 0.50;
-            const roiY = img.height * 0.45;
-            canvas.width = img.width;
-            canvas.height = roiHeight;
+            // Çözünürlüğü artır (OCR için kritik)
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight * 0.45; // Alt bölge
 
-            // Adaptif Filtreleme Döngüsü
+            // Filtreleme döngüsü (Adaptif)
             const filters = [
-                "grayscale(100%) contrast(150%)", // Standart
-                "grayscale(100%) contrast(300%) brightness(80%)", // High Contrast
-                "grayscale(100%) contrast(200%) brightness(120%) saturate(0) contrast(400%)" // Sharp/Binarized
+                "grayscale(100%) contrast(200%) brightness(95%)",
+                "grayscale(100%) contrast(350%) brightness(85%)",
+                "grayscale(100%) contrast(150%) brightness(110%) sharpness(3)"
             ];
             ctx.filter = filters[filterIndex];
             setFilterIndex((prev) => (prev + 1) % filters.length);
 
-            ctx.drawImage(img, 0, roiY, img.width, roiHeight, 0, 0, img.width, roiHeight);
-            const processedImage = canvas.toDataURL("image/jpeg", 0.9);
+            // Görüntüyü kırp ve çiz
+            ctx.drawImage(
+                video,
+                0, video.videoHeight * 0.50, video.videoWidth, video.videoHeight * 0.45,
+                0, 0, canvas.width, canvas.height
+            );
 
-            // 1. Barcode Taraması (ZXing - PDF417)
+            const processedImage = canvas.toDataURL("image/jpeg", 0.95);
+
+            // 1. Barkod (Anlık)
             if (codeReaderRef.current) {
                 try {
                     const barcodeResult = await codeReaderRef.current.decodeFromImageUrl(processedImage);
-                    if (barcodeResult) {
-                        const results = parseRawText(barcodeResult.getText());
-                        if (results.identityNo) {
-                            setSuccess(true);
-                            setStatus("Barkod ile okundu!");
-                            onScan(results);
-                            return;
-                        }
+                    const results = processMRZResult(barcodeResult.getText());
+                    if (results?.identityNo) {
+                        setSuccess(true);
+                        setStatus("Barkod ile doğrulandı!");
+                        onScan(results);
+                        return;
                     }
-                } catch (e) { /* No barcode found in this frame */ }
+                } catch (e) { }
             }
 
-            // 2. OCR Taraması (Tesseract)
+            // 2. OCR (Tesseract)
             if (workerRef.current) {
                 const { data: { text } } = await workerRef.current.recognize(processedImage);
-                const results = parseRawText(text);
+                const results = processMRZResult(text);
 
-                if (results.identityNo && results.identityNo.length === 11) {
+                if (results?.identityNo && results.identityNo.length === 11) {
                     if (lastTC === results.identityNo) {
                         setSuccess(true);
-                        setStatus("MRZ ile doğrulandı!");
+                        setStatus("MRZ Başarıyla Okundu!");
                         onScan(results);
                     } else {
                         setLastTC(results.identityNo);
-                        setStatus(`Okunuyor: ${results.identityNo}...`);
+                        setStatus(`Tarama: ${results.identityNo}...`);
                     }
+                } else if (text.includes('<')) {
+                    setStatus("Metin algılandı, netleştiriliyor...");
                 }
             }
         } catch (e) {
-            // Silently continue
+            console.error("Scan error:", e);
+        } finally {
+            isBusy.current = false;
         }
     }, [isScanning, success, lastTC, filterIndex, onScan]);
 
     useEffect(() => {
-        let timer: any;
-        if (isScanning && !success && !hasError) {
-            timer = setInterval(performScan, 700); // More aggressive loop
-        }
+        const timer = setInterval(performScan, 600);
         return () => clearInterval(timer);
-    }, [isScanning, success, hasError, performScan]);
+    }, [performScan]);
 
     return (
         <div className="flex flex-col items-center space-y-4 p-4">
-            <div className={`relative w-full max-w-sm rounded-[2rem] overflow-hidden border-4 ${success ? 'border-emerald-500 shadow-2xl shadow-emerald-500/20' : (hasError ? 'border-red-500' : 'border-zinc-800')} bg-black aspect-[3/4] transition-all duration-500`}>
+            <div className={`relative w-full max-w-sm rounded-[2.5rem] overflow-hidden border-4 ${success ? 'border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.3)]' : (hasError ? 'border-red-500' : 'border-zinc-800')} bg-black aspect-[3/4] transition-all duration-500`}>
                 <Webcam
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
-                    videoConstraints={{ facingMode: "environment" }}
+                    videoConstraints={{
+                        facingMode: "environment",
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }}
                     onUserMediaError={handleCameraError}
-                    className="w-full h-full object-cover scale-110"
+                    className="w-full h-full object-cover scale-105"
                 />
 
-                {/* Animation Overlay */}
                 {!success && !hasError && (
                     <>
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-[85%] h-1/3 border-2 border-emerald-500/50 rounded-2xl relative shadow-[0_0_50px_rgba(16,185,129,0.2)]">
-                                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
-                                <div className="absolute -bottom-10 left-0 w-full text-center">
-                                    <span className="text-[10px] text-emerald-400 font-bold tracking-widest uppercase bg-black/60 px-3 py-1 rounded-full border border-emerald-500/20 backdrop-blur-sm">
-                                        Hibrit Tarama Aktif
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <div className="w-[90%] h-1/4 border-2 border-emerald-500/40 rounded-3xl relative shadow-[0_0_60px_rgba(16,185,129,0.15)] bg-emerald-500/5 backdrop-blur-[2px]">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
+                                <div className="absolute -bottom-12 left-0 w-full text-center flex flex-col items-center gap-1">
+                                    <span className="text-[10px] text-emerald-300 font-black tracking-widest uppercase bg-black/80 px-4 py-1.5 rounded-full border border-emerald-500/30">
+                                        ODAKLANILIYOR
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Flash Toggle */}
-                        <div className="absolute bottom-6 right-6 z-30">
+                        <div className="absolute top-6 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                            <span className="text-[9px] font-bold text-white/80 tracking-tighter uppercase">CANLI ANALİZ</span>
+                        </div>
+
+                        <div className="absolute bottom-8 right-8 z-30 flex flex-col gap-3">
                             <Button
                                 variant="outline"
                                 size="icon"
                                 onClick={toggleFlash}
-                                className={`rounded-full h-12 w-12 border-2 ${isFlashOn ? 'bg-yellow-500 border-yellow-400 text-black animate-pulse' : 'bg-black/50 border-white/20 text-white backdrop-blur-md'}`}
+                                className={`rounded-full h-14 w-14 border-2 transition-all shadow-xl ${isFlashOn ? 'bg-yellow-400 border-yellow-300 text-black' : 'bg-black/60 border-white/20 text-white'}`}
                             >
-                                {isFlashOn ? <FlashlightOff className="h-6 w-6" /> : <Flashlight className="h-6 w-6" />}
+                                {isFlashOn ? <FlashlightOff className="h-7 w-7" /> : <Flashlight className="h-7 w-7" />}
                             </Button>
+                        </div>
+
+                        <div className="absolute top-6 right-6">
+                            <div className="bg-white/10 backdrop-blur-lg p-2 rounded-full border border-white/10 cursor-help group relative">
+                                <Info className="w-5 h-5 text-white/50" />
+                                <div className="absolute top-full right-0 mt-2 w-48 bg-black/90 text-[10px] text-white p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/20 z-50">
+                                    Kimlikteki 3 satırlık yazıyı (MRZ) parlamadan kutu içine denk getirin. En iyi sonuç için telefonu yaklaştırın.
+                                </div>
+                            </div>
                         </div>
                     </>
                 )}
 
-                {/* Success UI */}
                 {success && (
-                    <div className="absolute inset-0 bg-emerald-600/90 backdrop-blur-md flex flex-col items-center justify-center z-20 animate-in zoom-in duration-300">
-                        <CheckCircle2 className="h-20 w-20 text-white mb-4 animate-bounce" />
-                        <h3 className="text-2xl font-black text-white">BİLGİLER ALINDI</h3>
-                        <p className="text-emerald-100 font-medium">Veri kaydediliyor...</p>
-                    </div>
-                )}
-
-                {/* Error UI */}
-                {hasError && (
-                    <div className="absolute inset-0 bg-red-950/90 backdrop-blur-md flex flex-col items-center justify-center z-20">
-                        <XCircle className="h-16 w-16 text-red-500 mb-4" />
-                        <p className="font-bold text-red-100">Bağlantı Hatası</p>
-                        <Button variant="outline" size="sm" className="mt-4 border-red-500/30 text-red-400" onClick={() => window.location.reload()}>Tekrar Dene</Button>
+                    <div className="absolute inset-0 bg-emerald-600/95 backdrop-blur-xl flex flex-col items-center justify-center z-20 animate-in fade-in zoom-in duration-500">
+                        <div className="bg-white rounded-full p-4 mb-6 shadow-2xl scale-110 animate-pulse">
+                            <CheckCircle2 className="h-16 w-16 text-emerald-600" />
+                        </div>
+                        <h3 className="text-3xl font-black text-white tracking-tight">KİMLİK OKUNDU</h3>
+                        <p className="text-emerald-100 font-semibold mt-2 opacity-80 uppercase tracking-widest text-xs">Sisteme Aktarılıyor</p>
                     </div>
                 )}
             </div>
 
-            <div className="text-center w-full px-4">
-                <div className={`p-4 rounded-3xl mb-4 transition-colors ${success ? 'bg-emerald-500/10' : 'bg-secondary/50'}`}>
-                    <p className={`text-sm font-bold ${success ? 'text-emerald-500' : 'text-foreground/70'}`}>
+            <div className="text-center w-full max-w-sm">
+                <div className={`p-5 rounded-[2rem] mb-6 transition-all duration-300 ${success ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'} border-2`}>
+                    <p className={`text-sm font-bold ${success ? 'text-emerald-600' : 'text-zinc-600 dark:text-zinc-400'}`}>
                         {status}
                     </p>
                     {lastTC && !success && (
-                        <div className="mt-2 flex items-center justify-center gap-2 text-[10px] font-black text-emerald-500/60 transition-all opacity-0 animate-in fade-in slide-in-from-bottom-2">
-                            <Scan className="w-3 h-3" /> DOĞRULANIYOR: {lastTC}
+                        <div className="mt-3 flex items-center justify-center gap-3 py-2 px-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 animate-in slide-in-from-top-2">
+                            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span className="text-xs font-black text-emerald-600 tracking-wider">DOĞRULANIYOR: {lastTC}</span>
                         </div>
                     )}
                 </div>
                 {!success && (
-                    <Button variant="ghost" onClick={onClose} className="rounded-2xl text-muted-foreground font-bold hover:bg-zinc-100">
-                        Tarayıcıyı Kapat
+                    <Button variant="ghost" onClick={onClose} className="w-full rounded-2xl text-zinc-400 font-black hover:bg-zinc-100 dark:hover:bg-zinc-800 uppercase tracking-widest text-xs h-12">
+                        Vazgeç
                     </Button>
                 )}
             </div>
