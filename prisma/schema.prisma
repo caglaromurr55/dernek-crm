@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  password  String
+}
+
+model Household {
+  id                 String     @id @default(uuid())
+  address            String
+  contactNumber      String?
+  score              Int?       @default(0)
+  status             String     @default("PENDING")
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  monthlyIncome      Int?       @default(0)
+  rentAmount         Int?       @default(0)
+  rentStatus         String?
+  workerCount        Int?       @default(0)
+  studentCount       Int?       @default(0)
+  disabledChildCount Int?       @default(0)
+  carOwnership       Boolean?   @default(false)
+  estateOwnership    Boolean?   @default(false)
+  debtAmount         Int?       @default(0)
+  heatingType        String?    @default("dogalgaz")
+  lastAidDate        DateTime?
+  deliveries         Delivery[]
+  persons            Person[]
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  userId    String
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model Person {
+  id                String    @id @default(uuid())
+  householdId       String
+  firstName         String
+  lastName          String
+  identityNo        String    @unique
+  birthDate         DateTime?
+  isDisabled        Boolean   @default(false)
+  hasChronicIllness Boolean   @default(false)
+  isStudent         Boolean   @default(false)
+  isApplicant       Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  household         Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+}
+
+model DistributionEvent {
+  id          String             @id @default(uuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  status      String             @default("ACTIVE")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  itemId      String?
+  item        Item?              @relation(fields: [itemId], references: [id])
+  lists       DistributionList[]
+  deliveries  Delivery[]
+}
+
+model DistributionList {
+  id                  String            @id @default(uuid())
+  name                String?           // Örn: "Liste 1"
+  token               String?           @unique @default(cuid()) // Saha görevlisinin barkod/link ile erişimi için
+  assignedTo          String?           // Gönüllü Adı Soyadı
+  assignedPhone       String?           // Gönüllü Telefonu
+  distributionEventId String
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  distributionEvent   DistributionEvent @relation(fields: [distributionEventId], references: [id], onDelete: Cascade)
+  deliveries          Delivery[]
+}
+
+model Delivery {
+  id                  String            @id @default(uuid())
+  distributionEventId String
+  distributionListId  String?
+  householdId         String
+  status              String            @default("PENDING")
+  deliveredAt         DateTime?
+  deliveredBy         String?
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  signatureData       String?
+  distributionEvent   DistributionEvent @relation(fields: [distributionEventId], references: [id], onDelete: Cascade)
+  distributionList    DistributionList? @relation(fields: [distributionListId], references: [id], onDelete: SetNull)
+  household           Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+}
+
+model Item {
+  id          String              @id @default(uuid())
+  name        String              @unique
+  unit        String              @default("ADET")
+  stock       Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  events      DistributionEvent[]
+  inventories Inventory[]
+}
+
+model Inventory {
+  id        String   @id @default(uuid())
+  itemId    String
+  type      String
+  quantity  Int
+  reason    String?
+  createdAt DateTime @default(now())
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
