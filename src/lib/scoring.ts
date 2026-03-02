@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { calculateHouseholdTags } from "@/lib/tagging";
 
 export async function recalculateHouseholdScore(householdId: string) {
     const household = await (prisma as any).household.findUnique({
@@ -58,12 +59,16 @@ export async function recalculateHouseholdScore(householdId: string) {
         newStatus = "APPROVED";
     }
 
+    // --- OTOMATİK ETİKET ATAMA (Smart Labels) ---
+    const newTags = calculateHouseholdTags(household, household.persons);
+
     // Güncelleme
     await (prisma as any).household.update({
         where: { id: householdId },
         data: {
             score,
             status: newStatus,
+            tags: newTags,
             // Senkronizasyon: Hane üzerindeki sayısal alanları da güncelle
             studentCount: actualStudentCount,
             disabledChildCount: actualDisabledCount

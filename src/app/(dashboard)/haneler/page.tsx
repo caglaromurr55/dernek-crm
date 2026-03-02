@@ -199,6 +199,16 @@ export default async function HanelerPage({ searchParams }: Props) {
                                                 <div>
                                                     <p className="font-bold text-foreground leading-none">{kisi.firstName} {kisi.lastName}</p>
                                                     <p className="text-[11px] font-bold text-muted-foreground/60 mt-1.5 uppercase tracking-tighter">TC: {kisi.identityNo}</p>
+                                                    {kisi.household?.tags && kisi.household.tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                                            {kisi.household.tags.slice(0, 2).map((tag: string, i: number) => (
+                                                                <Badge key={i} variant="outline" className="text-[8px] bg-emerald-50 text-emerald-600 border-emerald-200 px-1 py-0 shadow-none uppercase font-bold tracking-widest">
+                                                                    {tag}
+                                                                </Badge>
+                                                            ))}
+                                                            {kisi.household.tags.length > 2 && <span className="text-[9px] text-emerald-500 font-black flex items-center">+{kisi.household.tags.length - 2}</span>}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -258,6 +268,16 @@ export default async function HanelerPage({ searchParams }: Props) {
                                         <div>
                                             <p className="font-bold text-sm leading-tight">{kisi.firstName} {kisi.lastName}</p>
                                             <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-tight">TC: {kisi.identityNo}</p>
+                                            {kisi.household?.tags && kisi.household.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                                    {kisi.household.tags.slice(0, 2).map((tag: string, i: number) => (
+                                                        <Badge key={i} variant="outline" className="text-[8px] bg-emerald-50 text-emerald-600 border-emerald-200 px-1 py-0 shadow-none uppercase font-bold tracking-widest">
+                                                            {tag}
+                                                        </Badge>
+                                                    ))}
+                                                    {kisi.household.tags.length > 2 && <span className="text-[9px] text-emerald-500 font-black flex items-center">+{kisi.household.tags.length - 2}</span>}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-black text-xs ${kisi.household.score >= 80 ? "bg-red-500/10 text-red-500" : "bg-secondary text-muted-foreground"}`}>

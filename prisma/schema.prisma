@@ -37,6 +37,7 @@ model Household {
   debtAmount         Int?       @default(0)
   heatingType        String?    @default("dogalgaz")
   lastAidDate        DateTime?
+  tags               String[]   @default([])
   deliveries         Delivery[]
   persons            Person[]
 
