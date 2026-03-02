@@ -31,49 +31,47 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     const stopCamera = useCallback(async () => {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        if (html5QrCodeRef.current) {
             try {
-                await html5QrCodeRef.current.stop();
-                html5QrCodeRef.current.clear();
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
+                }
             } catch (err) {
                 console.error("Kamera durdurma hatası:", err);
             }
+            html5QrCodeRef.current = null;
         }
+        setIsScanning(false);
     }, []);
 
     const startCamera = useCallback(async () => {
         setResult(null);
         setErrorMsg(null);
         setIsScanning(true);
-        setStatusText("Barkodu (Code128) kameraya tutun.");
-
-        // SSL/HTTPS Kontrolü
-        if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
-            setStatusText("Hata: Güvenli olmayan bağlantı (SSL/HTTPS).");
-            setErrorMsg("Kamera erişimi sadece güvenli (HTTPS) bağlantılarda mevcuttur. Lütfen sitenizin SSL sertifikasını kontrol edin.");
-            setIsScanning(false);
-            return;
-        }
+        setStatusText("Kamera hazırlanıyor...");
 
         // Div'in render edilmesini bekleyelim
         setTimeout(async () => {
+            const element = document.getElementById("barcode-reader");
+            if (!element) {
+                console.error("barcode-reader elementi bulunamadı");
+                return;
+            }
+
             try {
-                if (!html5QrCodeRef.current) {
-                    html5QrCodeRef.current = new Html5Qrcode("barcode-reader");
+                if (html5QrCodeRef.current) {
+                    await stopCamera();
                 }
 
-                // Eğer zaten tarama yapıyorsa önce durduralım
-                if (html5QrCodeRef.current.isScanning) {
-                    await html5QrCodeRef.current.stop();
-                }
+                html5QrCodeRef.current = new Html5Qrcode("barcode-reader", { verbose: false });
 
                 const config = {
-                    fps: 20, // Daha hızlı kare hızı
-                    qrbox: { width: 280, height: 150 }, // Hedef alan
-                    formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128],
-                    aspectRatio: 1.777778
+                    fps: 15,
+                    qrbox: { width: 280, height: 160 },
+                    aspectRatio: 1.0 // Kareye yakın daha stabil olabilir
                 };
 
+                setStatusText("Barkodu kameraya tutun.");
                 await html5QrCodeRef.current.start(
                     { facingMode: "environment" },
                     config,
@@ -81,29 +79,20 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
                         const cleanTc = decodedText.trim().replace(/\D/g, '');
                         if (cleanTc.length === 11) {
                             stopCamera();
-                            setIsScanning(false);
                             handleBarcodeQuery(cleanTc);
                         } else {
-                            setStatusText(`Hata: Okunan kod 11 haneli değil. (${decodedText})`);
+                            setStatusText(`Hata: 11 hane bulunamadı. (${decodedText})`);
                         }
                     },
-                    (errorMessage) => {
-                        // Tarama hatası (bulunamadı mesajları) - loglamaya gerek yok
-                    }
+                    () => { }
                 );
             } catch (err: any) {
                 console.error("Kamera başlatılamadı:", err);
                 setStatusText("Hata: Kamera başlatılamadı.");
-                if (err.toString().includes("NotAllowedError")) {
-                    setErrorMsg("Kamera izni reddedildi. Lütfen izin verip tekrar deneyin.");
-                } else if (err.toString().includes("NotFoundException")) {
-                    setErrorMsg("Uygun kamera bulunamadı.");
-                } else {
-                    setErrorMsg("Cihaz kamerasına erişilemedi. Lütfen donanımınızı ve SSL bağlantınızı kontrol edin.");
-                }
+                setErrorMsg("Kameraya erişilemedi. Lütfen izinleri ve HTTPS bağlantısını kontrol edin.");
                 setIsScanning(false);
             }
-        }, 500);
+        }, 600);
     }, [stopCamera]);
 
     useEffect(() => {

@@ -56,13 +56,15 @@ export function VolunteerDeliveryButton({ deliveryId, householdId, allowedIdenti
     }, []);
 
     const stopScanning = async () => {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        if (html5QrCodeRef.current) {
             try {
-                await html5QrCodeRef.current.stop();
-                html5QrCodeRef.current.clear();
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
+                }
             } catch (err) {
                 console.error("Kamera durdurma hatası:", err);
             }
+            html5QrCodeRef.current = null;
         }
         setIsScanning(false);
     };
@@ -79,18 +81,19 @@ export function VolunteerDeliveryButton({ deliveryId, householdId, allowedIdenti
 
         setTimeout(async () => {
             try {
-                if (!html5QrCodeRef.current) {
-                    html5QrCodeRef.current = new Html5Qrcode("volunteer-barcode-reader");
+                const element = document.getElementById("volunteer-barcode-reader");
+                if (!element) return;
+
+                if (html5QrCodeRef.current) {
+                    await stopScanning();
                 }
 
-                if (html5QrCodeRef.current.isScanning) {
-                    await html5QrCodeRef.current.stop();
-                }
+                html5QrCodeRef.current = new Html5Qrcode("volunteer-barcode-reader");
 
                 const config = {
-                    fps: 20,
+                    fps: 15,
                     qrbox: { width: 300, height: 200 },
-                    formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128]
+                    aspectRatio: 1.0
                 };
 
                 await html5QrCodeRef.current.start(
@@ -100,14 +103,14 @@ export function VolunteerDeliveryButton({ deliveryId, householdId, allowedIdenti
                         setTcInput(decodedText.trim());
                         stopScanning();
                     },
-                    (err) => { /* Sessizce yoksay */ }
+                    () => { }
                 );
             } catch (err) {
                 console.error(err);
                 setErrorMsg("Kamera başlatılamadı.");
                 setIsScanning(false);
             }
-        }, 300);
+        }, 600);
     };
 
     const handleVerifySubmit = (e: React.FormEvent) => {

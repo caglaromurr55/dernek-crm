@@ -101,9 +101,9 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d")!;
 
-            // Sadece alt %35'lik kısmı (MRZ bölgesi) alalım (ROI - Region of Interest)
-            const roiHeight = img.height * 0.35;
-            const roiY = img.height * 0.65;
+            // Sadece alt %45'lik kısmı (MRZ bölgesi) alalım (ROI - Region of Interest)
+            const roiHeight = img.height * 0.45;
+            const roiY = img.height * 0.55;
 
             canvas.width = img.width;
             canvas.height = roiHeight;
@@ -115,18 +115,20 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             const processedImage = canvas.toDataURL("image/jpeg", 0.9);
 
             setStatus("Metin çözümleniyor (OCR)...");
-            const worker = await createWorker('eng', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
+            const worker: any = await (createWorker as any)('eng', 1, {
+                logger: (m: any) => {
+                    if (m && m.status === 'recognizing text') {
                         setProgress(Math.floor(m.progress * 100));
                     }
                 }
             });
 
             // Sadece MRZ karakterlerine odaklan
-            await worker.setParameters({
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
-            });
+            if (worker.setParameters) {
+                await worker.setParameters({
+                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
+                });
+            }
 
             const { data: { text } } = await worker.recognize(processedImage);
             await worker.terminate();
@@ -174,7 +176,7 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                 {/* Kamera Kılavuz Çizgileri */}
                 {!hasError && (
                     <div className="absolute inset-0 border-4 border-emerald-500/50 m-8 rounded-md flex items-center justify-center pointer-events-none">
-                        <div className="w-full h-1/3 bg-emerald-500/20 top-2/3 absolute border-t border-emerald-500/50 flex items-center justify-center">
+                        <div className="w-full h-2/5 bg-emerald-500/20 top-1/2 absolute border-t border-emerald-500/50 flex items-center justify-center">
                             <span className="text-white text-[10px] font-semibold uppercase bg-black/50 px-2 py-1 rounded">
                                 MRZ Bölgesi
                             </span>
