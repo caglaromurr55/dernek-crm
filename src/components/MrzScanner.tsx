@@ -3,9 +3,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
 import { createWorker } from "tesseract.js";
-// @ts-ignore
-import { parse as parseMRZDoc } from "mrz-parser";
-import { Camera, RefreshCw, XCircle, BookOpen } from "lucide-react";
+import { Camera, RefreshCw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MrzScannerProps {
@@ -50,18 +48,17 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         // Tesseract'tan gelen metni temizle (sadece harf, rakam ve <)
         const cleanText = text.replace(/[^A-Z0-9<]/g, '');
 
-        // TD1 formatı için 3 satır, 30'ar karakter gerekir.
-        // Tesseract bazen satırları birleştirir. Bu yüzden her 30 karakterde bölmeye çalışalım.
+        // TD1 formatı (Türkiye Kimliği) için 3 satır, her biri 30 karakterdir.
         const lines: string[] = [];
         if (cleanText.length >= 90) {
             lines.push(cleanText.substring(0, 30));
             lines.push(cleanText.substring(30, 60));
             lines.push(cleanText.substring(60, 90));
         } else {
-            // Eğer 90 hane yoksa, mevcut satır bazlı bölmeyi kullanalım ama 30 haneye tamamlayalım
+            // Eğer blok halinde gelmediyse, satır bazlı bölmeyi tamir edelim
             const rawLines = text.split('\n')
                 .map(l => l.replace(/[^A-Z0-9<]/g, ''))
-                .filter(l => l.length >= 15);
+                .filter(l => l.length >= 10);
 
             for (let i = 0; i < 3; i++) {
                 let l = rawLines[i] || "";
@@ -76,43 +73,47 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         let lastName = "";
         let birthDate = "";
 
-        try {
-            // mrz-parser ile parse et
-            const result = parseMRZDoc(lines);
+        const line2 = lines[1]; // Doğum, Cinsiyet, TC No satırı
+        const line3 = lines[2]; // Soyisim ve İsim satırı
 
-            // TC No genellikle line 2 (chars 19-30) optional2 alanındadır.
-            // mrz-parser result yapısı: result.fields.documentNumber, etc.
-            const fields: any = result.fields || {};
+        // 1. TC No Yakalama (Line 2: 19-30 arası)
+        if (line2 && line2.length === 30) {
+            // Türkiye'de TC No 19. karakterden başlar ve 11 hane sürer.
+            let tcPart = line2.substring(18, 29);
+            // OCR hatalarını düzelt
+            tcPart = tcPart.replace(/O/g, '0').replace(/[ISL]/g, '1').replace(/S/g, '5').replace(/B/g, '8');
 
-            // mrz-parser'da TD1 için documentNumber genellikle ilk satırdaki 9 haneli koddur.
-            // Bizim TC'miz ise genellikle optional olan alandadır.
-            const possibleTCs = [
-                fields.optional2?.replace(/</g, ''),
-                fields.optional1?.replace(/</g, ''),
-                fields.documentNumber?.replace(/</g, '')
-            ];
-
-            const foundTC = possibleTCs.find(tc => tc && tc.length === 11 && /^\d+$/.test(tc));
-            if (foundTC) identityNo = foundTC;
-
-            firstName = fields.firstName?.replace(/</g, ' ').trim() || "";
-            lastName = fields.lastName?.replace(/</g, ' ').trim() || "";
-
-            // Doğum Tarihi (YYMMDD -> YYYY-MM-DD)
-            if (fields.birthDate && fields.birthDate.length === 6) {
-                const yearPrefix = parseInt(fields.birthDate.substring(0, 2)) > 50 ? '19' : '20';
-                birthDate = `${yearPrefix}${fields.birthDate.substring(0, 2)}-${fields.birthDate.substring(2, 4)}-${fields.birthDate.substring(4, 6)}`;
+            if (tcPart.length === 11 && /^\d+$/.test(tcPart)) {
+                identityNo = tcPart;
             }
-        } catch (e) {
-            console.error("mrz-parser error:", e);
+
+            // 2. Doğum Tarihi (Line 2: 1-6 arası -> YYMMDD)
+            let dobPart = line2.substring(0, 6);
+            dobPart = dobPart.replace(/O/g, '0').replace(/[ISL]/g, '1');
+            if (dobPart.length === 6 && /^\d+$/.test(dobPart)) {
+                const yearPrefix = parseInt(dobPart.substring(0, 2)) > 50 ? '19' : '20';
+                birthDate = `${yearPrefix}${dobPart.substring(0, 2)}-${dobPart.substring(2, 4)}-${dobPart.substring(4, 6)}`;
+            }
         }
 
-        // Fallback: Eğer kütüphane TC bulamadıysa raw text içinden 11 hane ara
-        if (!identityNo) {
+        // 3. İsim ve Soyisim (Line 3: LASTNAME<<FIRSTNAME)
+        if (line3 && line3.length === 30) {
+            const nameMatch = line3.split('<<');
+            if (nameMatch.length >= 2) {
+                lastName = nameMatch[0].replace(/</g, ' ').trim();
+                firstName = nameMatch[1].replace(/</g, ' ').trim();
+                // firstName içinde bazen ek isimler < ile ayrılır, onları boşluğa çevir
+                firstName = firstName.split('<')[0].trim();
+            }
+        }
+
+        // Fallback: Eğer manuel TC bulamadıysa raw text içinden 11 hane ara
+        if (!identityNo || identityNo.length !== 11) {
             const textWithNumbersMerged = text.toUpperCase()
-                .replace(/[OÖD]/g, '0')
-                .replace(/[Il]/g, '1')
-                .replace(/[SŞ]/g, '5')
+                .replace(/O/g, '0')
+                .replace(/[IL]/g, '1')
+                .replace(/S/g, '5')
+                .replace(/B/g, '8')
                 .replace(/[Z]/g, '2');
             const tcMatch = textWithNumbersMerged.replace(/[^0-9]/g, '').match(/([1-9][0-9]{10})/);
             if (tcMatch) identityNo = tcMatch[1];
@@ -132,7 +133,6 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         setProgress(0);
 
         try {
-            // Görüntü Ön İşleme (Canvas üzerinde)
             const img = new Image();
             img.src = imageSrc;
             await new Promise(resolve => img.onload = resolve);
@@ -140,14 +140,12 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d")!;
 
-            // Sadece alt %45'lik kısmı (MRZ bölgesi) alalım (ROI - Region of Interest)
             const roiHeight = img.height * 0.45;
             const roiY = img.height * 0.55;
 
             canvas.width = img.width;
             canvas.height = roiHeight;
 
-            // Kontrast ve Gri Tonlama filtresi (OCR başarısını artırır)
             ctx.filter = "grayscale(100%) contrast(250%) brightness(110%)";
             ctx.drawImage(img, 0, roiY, img.width, roiHeight, 0, 0, img.width, roiHeight);
 
@@ -162,7 +160,6 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                 }
             });
 
-            // Sadece MRZ karakterlerine odaklan
             if (worker.setParameters) {
                 await worker.setParameters({
                     tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
@@ -195,7 +192,6 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     }, [webcamRef, onScan]);
 
     useEffect(() => {
-        // Component yüklendiğinde kameranın hazır olması için kısa bir bekleme
         const timer = setTimeout(() => setStatus("Kimlik kartının arka yüzünü (Barkodlu alan) kameraya tutun."), 1500);
         return () => clearTimeout(timer);
     }, []);
@@ -212,7 +208,6 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                     className="w-full h-auto object-cover opacity-80"
                 />
 
-                {/* Kamera Kılavuz Çizgileri */}
                 {!hasError && (
                     <div className="absolute inset-0 border-4 border-emerald-500/50 m-8 rounded-md flex items-center justify-center pointer-events-none">
                         <div className="w-full h-2/5 bg-emerald-500/20 top-1/2 absolute border-t border-emerald-500/50 flex items-center justify-center">
