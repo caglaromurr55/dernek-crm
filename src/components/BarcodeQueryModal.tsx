@@ -43,6 +43,14 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
         setIsScanning(true);
         setStatusText("Barkodu (Code128) kameraya tutun.");
 
+        // SSL/HTTPS Kontrolü
+        if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
+            setStatusText("Hata: Güvenli olmayan bağlantı (SSL/HTTPS).");
+            setErrorMsg("Kamera erişimi sadece güvenli (HTTPS) bağlantılarda mevcuttur. Lütfen sitenizin SSL sertifikasını kontrol edin.");
+            setIsScanning(false);
+            return;
+        }
+
         if (!codeReaderRef.current) {
             const hints = new Map();
             hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);

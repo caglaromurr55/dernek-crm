@@ -63,6 +63,13 @@ export function VolunteerDeliveryButton({ deliveryId, householdId, allowedIdenti
 
     const startScanning = async () => {
         setErrorMsg("");
+
+        // SSL/HTTPS Kontrolü
+        if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
+            setErrorMsg("Hata: Kamera erişimi sadece güvenli (HTTPS) bağlantılarda mevcuttur. Lütfen sitenizin SSL sertifikasını kontrol edin.");
+            return;
+        }
+
         try {
             const hints = new Map();
             hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);

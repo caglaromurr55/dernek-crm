@@ -19,8 +19,30 @@ interface MrzScannerProps {
 export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     const webcamRef = useRef<Webcam>(null);
     const [isScanning, setIsScanning] = useState(false);
-    const [status, setStatus] = useState("Kamera başlatılıyor...");
+    const [status, setStatus] = useState("Kamera bekleniyor...");
     const [progress, setProgress] = useState(0);
+    const [hasError, setHasError] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
+            setStatus("HATA: Kamera erişimi için HTTPS (SSL) gereklidir. Lütfen siteyi güvenli bağlantı üzerinden açın.");
+            setHasError(true);
+        } else {
+            setStatus("Kimlik kartının arka yüzünü (Barkodlu alan) kameraya tutun.");
+        }
+    }, []);
+
+    const handleCameraError = useCallback((error: string | DOMException) => {
+        console.error("Kamera hatası:", error);
+        setHasError(true);
+        if (error.toString().includes("NotAllowedError") || error.toString().includes("Permission denied")) {
+            setStatus("Kamera izni reddedildi. Lütfen tarayıcı ayarlarından kamera iznini onaylayın.");
+        } else if (error.toString().includes("NotFoundError")) {
+            setStatus("Kamera bulunamadı. Lütfen cihazınızda kamera olduğundan emin olun.");
+        } else {
+            setStatus("Kamera başlatılamadı. Başka bir uygulama kamerayı kullanıyor olabilir.");
+        }
+    }, []);
 
     const parseMRZ = (text: string) => {
         // Tesseract < karakterini farklı harfler gibi algılayabilir
@@ -127,23 +149,36 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
 
     return (
         <div className="flex flex-col items-center space-y-4 p-4">
-            <div className="relative w-full max-w-sm rounded-lg overflow-hidden border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-black">
+            <div className={`relative w-full max-w-sm rounded-lg overflow-hidden border-2 ${hasError ? 'border-red-500/50' : 'border-dashed border-zinc-300 dark:border-zinc-700'} bg-black transition-colors`}>
                 <Webcam
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
                     videoConstraints={{ facingMode: "environment" }}
+                    onUserMediaError={handleCameraError}
                     className="w-full h-auto object-cover opacity-80"
                 />
 
                 {/* Kamera Kılavuz Çizgileri */}
-                <div className="absolute inset-0 border-4 border-emerald-500/50 m-8 rounded-md flex items-center justify-center pointer-events-none">
-                    <div className="w-full h-1/3 bg-emerald-500/20 top-2/3 absolute border-t border-emerald-500/50 flex items-center justify-center">
-                        <span className="text-white text-xs font-semibold uppercase bg-black/50 px-2 py-1 rounded">
-                            MRZ Bölgesi
-                        </span>
+                {!hasError && (
+                    <div className="absolute inset-0 border-4 border-emerald-500/50 m-8 rounded-md flex items-center justify-center pointer-events-none">
+                        <div className="w-full h-1/3 bg-emerald-500/20 top-2/3 absolute border-t border-emerald-500/50 flex items-center justify-center">
+                            <span className="text-white text-[10px] font-semibold uppercase bg-black/50 px-2 py-1 rounded">
+                                MRZ Bölgesi
+                            </span>
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {hasError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950/90 backdrop-blur-sm">
+                        <XCircle className="h-12 w-12 text-red-500 mb-3" />
+                        <p className="text-sm font-bold text-red-400">Kamera Bağlantısı Koptu</p>
+                        <p className="text-[10px] text-zinc-500 mt-2 italic px-4 leading-relaxed">
+                            Güvenli bağlantı (HTTPS) veya tarayıcı izinlerini kontrol edin.
+                        </p>
+                    </div>
+                )}
 
                 {isScanning && (
                     <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 transition-all">

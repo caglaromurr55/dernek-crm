@@ -20,9 +20,9 @@ const navigation = [
   { name: "Yardım Türleri", href: "/yardim-turleri", icon: HeartHandshake },
 ];
 
-export function Sidebar() {
+export function SidebarContent() {
   return (
-    <div className="flex h-full w-64 flex-col border-r border-border bg-card">
+    <div className="flex h-full flex-col">
       <div className="flex h-16 items-center border-b border-border px-6">
         <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary">
           <HeartHandshake className="h-6 w-6 text-emerald-600" />
@@ -56,6 +56,14 @@ export function Sidebar() {
         </Link>
         <LogoutButton />
       </div>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <div className="hidden lg:flex lg:h-full lg:w-64 lg:flex-col lg:border-r lg:border-border lg:bg-card">
+      <SidebarContent />
     </div>
   );
 }

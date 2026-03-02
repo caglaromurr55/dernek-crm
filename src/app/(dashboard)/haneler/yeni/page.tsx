@@ -90,38 +90,38 @@ export default function YeniHaneEklePage() {
                 <div className="lg:col-span-8 space-y-8">
                     {/* BAŞVURU SAHİBİ */}
                     <Card className="glass-card border-0 shadow-lg overflow-hidden border-l-4 border-l-emerald-500 bg-card">
-                        <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0">
-                            <div>
-                                <CardTitle className="text-xl font-bold text-foreground">Başvuru Sahibi (Hane Reisi)</CardTitle>
-                                <CardDescription className="text-muted-foreground">Kimlik bilgileri tarayıcı ile doldurulabilir.</CardDescription>
+                        <CardHeader className="p-4 sm:p-6 pb-4 flex flex-row items-center justify-between space-y-0">
+                            <div className="flex-1 mr-2">
+                                <CardTitle className="text-lg sm:text-xl font-bold text-foreground">Başvuru Sahibi (Hane Reisi)</CardTitle>
+                                <CardDescription className="text-[10px] sm:text-xs text-muted-foreground mt-1">Sistem otomatik skorlayacaktır.</CardDescription>
                             </div>
                             <Button
                                 type="button"
                                 onClick={() => setScannerOpen({ open: true, targetId: "applicant" })}
-                                className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"
+                                className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20 h-9 px-3 text-xs"
                                 variant="outline"
                                 size="sm"
                             >
-                                <Camera className="mr-2 h-4 w-4" /> Kimlik Tara
+                                <Camera className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Kimlik Tara</span><span className="sm:hidden">Tara</span>
                             </Button>
                         </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-bold text-muted-foreground uppercase">AD</Label>
-                                    <Input name="firstName" value={applicantData.firstName} onChange={e => setApplicantData({ ...applicantData, firstName: e.target.value })} required className="bg-secondary/50 border-border h-10 text-foreground" />
+                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">AD</Label>
+                                    <Input name="firstName" value={applicantData.firstName} onChange={e => setApplicantData({ ...applicantData, firstName: e.target.value })} required className="bg-secondary/50 border-border h-10 text-sm" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-bold text-muted-foreground uppercase">SOYAD</Label>
-                                    <Input name="lastName" value={applicantData.lastName} onChange={e => setApplicantData({ ...applicantData, lastName: e.target.value })} required className="bg-secondary/50 border-border h-10 text-foreground" />
+                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">SOYAD</Label>
+                                    <Input name="lastName" value={applicantData.lastName} onChange={e => setApplicantData({ ...applicantData, lastName: e.target.value })} required className="bg-secondary/50 border-border h-10 text-sm" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-bold text-muted-foreground uppercase">TC KİMLİK</Label>
-                                    <Input name="identityNo" maxLength={11} value={applicantData.identityNo} onChange={e => setApplicantData({ ...applicantData, identityNo: e.target.value })} required className="bg-secondary/50 border-border h-10 text-foreground" />
+                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">TC KİMLİK</Label>
+                                    <Input name="identityNo" maxLength={11} value={applicantData.identityNo} onChange={e => setApplicantData({ ...applicantData, identityNo: e.target.value })} required className="bg-secondary/50 border-border h-10 text-sm" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-bold text-muted-foreground uppercase">DOĞUM TARİHİ</Label>
-                                    <Input name="birthDate" type="date" value={applicantData.birthDate} onChange={e => setApplicantData({ ...applicantData, birthDate: e.target.value })} className="bg-secondary/50 border-border h-10 text-foreground" />
+                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">DOĞUM TARİHİ</Label>
+                                    <Input name="birthDate" type="date" value={applicantData.birthDate} onChange={e => setApplicantData({ ...applicantData, birthDate: e.target.value })} className="bg-secondary/50 border-border h-10 text-sm" />
                                 </div>
                             </div>
                         </CardContent>
@@ -130,51 +130,55 @@ export default function YeniHaneEklePage() {
                     {/* DİĞER SAKİNLER */}
                     <div className="space-y-4">
                         <div className="flex justify-between items-center px-1">
-                            <h3 className="text-lg font-bold flex items-center gap-2 text-foreground"><Users className="w-5 h-5 text-emerald-500" /> Aile Bireyleri</h3>
-                            <Button type="button" onClick={() => setOtherMembers([...otherMembers, { id: crypto.randomUUID(), firstName: "", lastName: "", identityNo: "", birthDate: "", isStudent: false, isDisabled: false, hasChronicIllness: false }])} variant="outline" size="sm" className="glass-card border-dashed border-border bg-secondary/50 hover:bg-secondary">
+                            <h3 className="text-md sm:text-lg font-bold flex items-center gap-2 text-foreground"><Users className="w-5 h-5 text-emerald-500" /> Aile Bireyleri</h3>
+                            <Button type="button" onClick={() => setOtherMembers([...otherMembers, { id: crypto.randomUUID(), firstName: "", lastName: "", identityNo: "", birthDate: "", isStudent: false, isDisabled: false, hasChronicIllness: false }])} variant="outline" size="sm" className="glass-card border-dashed border-border bg-secondary/50 hover:bg-secondary h-9 text-xs">
                                 <UserPlus className="mr-2 h-4 w-4" /> Sakin Ekle
                             </Button>
                         </div>
 
                         {otherMembers.length === 0 ? (
-                            <div className="py-12 bg-secondary/30 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-muted-foreground/60">
-                                <Users className="w-10 h-10 mb-2" />
-                                <p className="text-sm font-medium">Diğer hane sakinlerini buraya ekleyin.</p>
+                            <div className="py-10 bg-secondary/30 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-muted-foreground/60">
+                                <Users className="w-8 h-8 mb-2 opacity-50" />
+                                <p className="text-[11px] font-medium italic">Diğer hane sakinlerini buraya ekleyin.</p>
                             </div>
                         ) : (
                             <div className="grid gap-4">
                                 {otherMembers.map((member, idx) => (
-                                    <Card key={member.id} className="glass-card border border-border/50 shadow-md group animate-in-fade bg-card">
+                                    <Card key={member.id} className="glass-card border border-border/50 shadow-md group animate-in-fade bg-card overflow-hidden">
                                         <CardContent className="p-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                                                <div className="md:col-span-1 flex items-center justify-center pb-2">
-                                                    <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-tighter">#0{idx + 1}</span>
-                                                </div>
-                                                <div className="md:col-span-2 space-y-1.5">
-                                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">AD</Label>
-                                                    <Input value={member.firstName} onChange={e => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, firstName: e.target.value } : m))} className="bg-secondary/50 border-border h-9 text-sm text-foreground" />
-                                                </div>
-                                                <div className="md:col-span-2 space-y-1.5">
-                                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">SOYAD</Label>
-                                                    <Input value={member.lastName} onChange={e => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, lastName: e.target.value } : m))} className="bg-secondary/50 border-border h-9 text-sm text-foreground" />
-                                                </div>
-                                                <div className="md:col-span-2 space-y-1.5">
-                                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">TC KİMLİK</Label>
-                                                    <Input value={member.identityNo} maxLength={11} onChange={e => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, identityNo: e.target.value } : m))} className="bg-secondary/50 border-border h-9 text-sm text-foreground" />
-                                                </div>
-                                                <div className="md:col-span-4 flex items-center gap-4 pb-2 justify-center">
-                                                    <div className="flex items-center space-x-2">
-                                                        <Checkbox id={`st-${member.id}`} checked={member.isStudent} onCheckedChange={(v) => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, isStudent: !!v } : m))} className="border-border" />
-                                                        <Label htmlFor={`st-${member.id}`} className="text-xs font-bold text-muted-foreground cursor-pointer">Öğrenci</Label>
-                                                    </div>
-                                                    <div className="flex items-center space-x-2">
-                                                        <Checkbox id={`di-${member.id}`} checked={member.isDisabled} onCheckedChange={(v) => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, isDisabled: !!v } : m))} className="border-border" />
-                                                        <Label htmlFor={`di-${member.id}`} className="text-xs font-bold text-muted-foreground cursor-pointer">Engelli</Label>
+                                            <div className="flex flex-col space-y-4">
+                                                <div className="flex justify-between items-center bg-secondary/30 -m-4 mb-2 px-4 py-2 border-b border-border/50">
+                                                    <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-tighter">Birey #0{idx + 1}</span>
+                                                    <div className="flex gap-1">
+                                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10" onClick={() => setScannerOpen({ open: true, targetId: member.id })}><Camera className="h-3.5 w-3.5" /></Button>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:bg-red-500/10" onClick={() => setOtherMembers(otherMembers.filter(m => m.id !== member.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
                                                     </div>
                                                 </div>
-                                                <div className="md:col-span-1 flex gap-1 justify-end pb-1">
-                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-emerald-600" onClick={() => setScannerOpen({ open: true, targetId: member.id })}><Camera className="h-4 w-4" /></Button>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => setOtherMembers(otherMembers.filter(m => m.id !== member.id))}><Trash2 className="h-4 w-4" /></Button>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[9px] font-bold text-muted-foreground uppercase">AD</Label>
+                                                        <Input value={member.firstName} onChange={e => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, firstName: e.target.value } : m))} className="bg-secondary/50 border-border h-8 text-xs" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[9px] font-bold text-muted-foreground uppercase">SOYAD</Label>
+                                                        <Input value={member.lastName} onChange={e => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, lastName: e.target.value } : m))} className="bg-secondary/50 border-border h-8 text-xs" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[9px] font-bold text-muted-foreground uppercase">TC KİMLİK</Label>
+                                                        <Input value={member.identityNo} maxLength={11} onChange={e => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, identityNo: e.target.value } : m))} className="bg-secondary/50 border-border h-8 text-xs" />
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center gap-4 pt-1">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Checkbox id={`st-${member.id}`} checked={member.isStudent} onCheckedChange={(v) => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, isStudent: !!v } : m))} className="h-3.5 w-3.5 border-border" />
+                                                        <Label htmlFor={`st-${member.id}`} className="text-[10px] font-bold text-muted-foreground cursor-pointer">Öğrenci</Label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <Checkbox id={`di-${member.id}`} checked={member.isDisabled} onCheckedChange={(v) => setOtherMembers(prev => prev.map(m => m.id === member.id ? { ...m, isDisabled: !!v } : m))} className="h-3.5 w-3.5 border-border" />
+                                                        <Label htmlFor={`di-${member.id}`} className="text-[10px] font-bold text-muted-foreground cursor-pointer">Engelli</Label>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </CardContent>
