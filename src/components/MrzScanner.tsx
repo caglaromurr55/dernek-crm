@@ -55,7 +55,7 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
 
             await worker.setParameters({
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
-                tessedit_pageseg_mode: '6', // Assume structured text
+                tessedit_pageseg_mode: 6 as any, // Assume structured text
                 tessjs_create_hocr: '0',
                 tessjs_create_tsv: '0',
                 tessjs_create_txt: '1',
@@ -189,7 +189,9 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             // Parallel Path 1: Instant Barcode
             if (codeReaderRef.current) {
                 try {
-                    const bResult = await codeReaderRef.current.decodeFromCanvasElement(canvas as any);
+                    // Create a data URL from the raw canvas for barcode detection
+                    const barcodeImage = canvas.toDataURL("image/jpeg", 0.8);
+                    const bResult = await codeReaderRef.current.decodeFromImageUrl(barcodeImage);
                     const parsed = processResults(bResult.getText());
                     if (parsed?.identityNo) {
                         setSuccess(true);
@@ -207,8 +209,8 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             }
             retryCount.current++;
 
-            // Use canvas directly for recognize to avoid base64 overhead in v7
-            const { data: { text } } = await workerRef.current.recognize(canvas);
+            const processedImage = canvas.toDataURL("image/jpeg", 0.9);
+            const { data: { text } } = await workerRef.current.recognize(processedImage);
             const parsed = processResults(text);
 
             if (parsed?.identityNo && parsed.identityNo.length === 11) {
