@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 import { FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { normalizeTr } from "@/lib/pdf-utils";
+import { normalizeTr, loadTurkishFont } from "@/lib/pdf-utils";
 
 
 interface DeliveryPDFButtonProps {
@@ -20,6 +20,7 @@ export function DeliveryPDFButton({ delivery, household, applicant }: DeliveryPD
         setLoading(true);
         try {
             const doc = new jsPDF();
+            await loadTurkishFont(doc);
 
             // Header
             doc.setFontSize(22);

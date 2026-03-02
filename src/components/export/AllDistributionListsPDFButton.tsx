@@ -5,7 +5,7 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { Loader2, Printer, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { normalizeTr } from "@/lib/pdf-utils";
+import { normalizeTr, loadTurkishFont } from "@/lib/pdf-utils";
 
 
 interface AllDistributionListsPDFButtonProps {
@@ -20,6 +20,7 @@ export function AllDistributionListsPDFButton({ event, lists }: AllDistributionL
         setLoading(true);
         try {
             const doc = new jsPDF("landscape");
+            await loadTurkishFont(doc);
 
             for (let i = 0; i < lists.length; i++) {
                 const list = lists[i];
