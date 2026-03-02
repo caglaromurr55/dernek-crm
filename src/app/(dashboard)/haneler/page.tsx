@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { BarcodeQueryButton } from "@/components/BarcodeQueryButton";
 import HanelerSearchForm from "@/components/HanelerSearchForm";
 import { ExportButtons } from "@/components/export/ExportButtons";
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
