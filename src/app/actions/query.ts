@@ -1,8 +1,12 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export async function queryPersonByBarcode(identityNo: string) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Sorgulama yapmak için giriş yapmalısınız." };
+
     if (!identityNo || identityNo.length !== 11) {
         return { success: false, message: "Geçersiz barkod veya TC Kimlik numarası." };
     }

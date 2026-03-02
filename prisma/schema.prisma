@@ -39,6 +39,9 @@ model Household {
   lastAidDate        DateTime?
   deliveries         Delivery[]
   persons            Person[]
+
+  @@index([score])
+  @@index([status])
 }
 
 model AuditLog {

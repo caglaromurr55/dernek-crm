@@ -3,8 +3,12 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
+import { auth } from "@/auth";
 
 export async function createDistributionEventAction(formData: FormData) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Unauthorized: Bu işlemi yapmaya yetkiniz yok." };
+
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
     const itemId = formData.get("itemId") as string;
@@ -116,6 +120,9 @@ export async function createDistributionEventAction(formData: FormData) {
 }
 
 export async function updateDeliveryStatusAction(deliveryId: string, status: string, notes?: string) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Unauthorized: Oturum bulunamadı." };
+
     try {
         let dbDelivery: any = null;
 
