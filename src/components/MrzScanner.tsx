@@ -3,7 +3,8 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
 import { createWorker } from "tesseract.js";
-import { parse as parseMRZDoc } from "mrz";
+// @ts-ignore
+import { parse as parseMRZDoc } from "mrz-parser";
 import { Camera, RefreshCw, XCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -46,10 +47,29 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     }, []);
 
     const parseMRZ = (text: string) => {
-        // Tesseract'tan gelen metni satırlara böl ve temizle
-        const lines = text.split('\n')
-            .map(l => l.replace(/\s+/g, '').toUpperCase())
-            .filter(l => l.length >= 20);
+        // Tesseract'tan gelen metni temizle (sadece harf, rakam ve <)
+        const cleanText = text.replace(/[^A-Z0-9<]/g, '');
+
+        // TD1 formatı için 3 satır, 30'ar karakter gerekir.
+        // Tesseract bazen satırları birleştirir. Bu yüzden her 30 karakterde bölmeye çalışalım.
+        const lines: string[] = [];
+        if (cleanText.length >= 90) {
+            lines.push(cleanText.substring(0, 30));
+            lines.push(cleanText.substring(30, 60));
+            lines.push(cleanText.substring(60, 90));
+        } else {
+            // Eğer 90 hane yoksa, mevcut satır bazlı bölmeyi kullanalım ama 30 haneye tamamlayalım
+            const rawLines = text.split('\n')
+                .map(l => l.replace(/[^A-Z0-9<]/g, ''))
+                .filter(l => l.length >= 15);
+
+            for (let i = 0; i < 3; i++) {
+                let l = rawLines[i] || "";
+                if (l.length > 30) l = l.substring(0, 30);
+                while (l.length < 30) l += "<";
+                lines.push(l);
+            }
+        }
 
         let identityNo = "";
         let firstName = "";
@@ -57,12 +77,15 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         let birthDate = "";
 
         try {
-            // mrz kütüphanesi ile parse et
+            // mrz-parser ile parse et
             const result = parseMRZDoc(lines);
-            const fields = result.fields;
 
-            // Türkiye Kimliğinde (TD1) TC No genellikle optional2 alanında (Line 2, char 19-30) yer alır.
-            // Bazı durumlarda documentNumber da olabilir (Format farklılıkları için).
+            // TC No genellikle line 2 (chars 19-30) optional2 alanındadır.
+            // mrz-parser result yapısı: result.fields.documentNumber, etc.
+            const fields: any = result.fields || {};
+
+            // mrz-parser'da TD1 için documentNumber genellikle ilk satırdaki 9 haneli koddur.
+            // Bizim TC'miz ise genellikle optional olan alandadır.
             const possibleTCs = [
                 fields.optional2?.replace(/</g, ''),
                 fields.optional1?.replace(/</g, ''),
@@ -72,7 +95,6 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             const foundTC = possibleTCs.find(tc => tc && tc.length === 11 && /^\d+$/.test(tc));
             if (foundTC) identityNo = foundTC;
 
-            // İsim ve Soyisim (Valid olmasa bile OCR çoğu karakteri doğru okumuş olabilir)
             firstName = fields.firstName?.replace(/</g, ' ').trim() || "";
             lastName = fields.lastName?.replace(/</g, ' ').trim() || "";
 
@@ -82,7 +104,7 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                 birthDate = `${yearPrefix}${fields.birthDate.substring(0, 2)}-${fields.birthDate.substring(2, 4)}-${fields.birthDate.substring(4, 6)}`;
             }
         } catch (e) {
-            console.error("MRZ Parse hatası:", e);
+            console.error("mrz-parser error:", e);
         }
 
         // Fallback: Eğer kütüphane TC bulamadıysa raw text içinden 11 hane ara
