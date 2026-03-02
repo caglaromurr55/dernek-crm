@@ -5,7 +5,7 @@ import Webcam from "react-webcam";
 import { createWorker } from "tesseract.js";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { parse as parseMRZ } from "mrz";
-import { RefreshCw, XCircle, CheckCircle2, Scan, Flashlight, FlashlightOff, Zap, ShieldCheck } from "lucide-react";
+import { RefreshCw, XCircle, CheckCircle2, Scan, Flashlight, FlashlightOff, Zap, ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MrzScannerProps {
@@ -23,107 +23,73 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     const workerRef = useRef<any>(null);
     const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
     const isBusy = useRef(false);
+    const retryCount = useRef(0);
 
     const [isScanning, setIsScanning] = useState(false);
-    const [status, setStatus] = useState("Profesyonel motor hazırlanıyor...");
+    const [status, setStatus] = useState("Tesseract v7 Motoru Başlatılıyor...");
+    const [progress, setProgress] = useState(0);
     const [hasError, setHasError] = useState(false);
     const [success, setSuccess] = useState(false);
     const [lastTC, setLastTC] = useState("");
     const [isFlashOn, setIsFlashOn] = useState(false);
-    const [scanCount, setScanCount] = useState(0);
 
-    // Initialize High-Performance Scanner
+    // Initialize Tesseract.js v7 (Modern Async Pattern)
     const initScanner = useCallback(async () => {
         try {
-            // Tesseract OCR - OCR-B Optimized
-            const worker = await (createWorker as any)('eng', 1, {
-                cacheMethod: 'readOnly',
-                gzip: true,
+            // Tesseract v7: createWorker is async and takes up to 3 args
+            // We use 'eng' as the default but we'll optimize it with parameters
+            const worker = await createWorker('eng', 1, {
                 logger: (m: any) => {
-                    if (m.status === 'recognizing text' && m.progress === 1) {
-                        setScanCount(c => c + 1);
+                    if (m.status === 'recognizing text') {
+                        setProgress(Math.round(m.progress * 100));
+                    } else if (m.status === 'loading tesseract core') {
+                        setStatus("Sistem Çekirdeği Yükleniyor...");
+                    } else if (m.status === 'loading language traineddata') {
+                        setStatus("Dil Paketi Hazırlanıyor...");
                     }
-                }
+                },
+                // Use a reliable CDN for worker and core to avoid slowness
+                workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@v5.1.1/dist/worker.min.js',
+                corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@v5.1.0/tesseract-core.wasm.js',
             });
 
-            if (worker.setParameters) {
-                await worker.setParameters({
-                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
-                    tessedit_pageseg_mode: '6', // Structured block
-                    tessjs_create_hocr: '0',
-                    tessjs_create_tsv: '0',
-                });
-            }
+            await worker.setParameters({
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
+                tessedit_pageseg_mode: '6', // Assume structured text
+                tessjs_create_hocr: '0',
+                tessjs_create_tsv: '0',
+                tessjs_create_txt: '1',
+            });
+
             workerRef.current = worker;
 
-            // ZXing Barcode (Parallel Path)
+            // ZXing for Barcodes (Ultra Fast)
             const hints = new Map();
             hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.PDF_417]);
             codeReaderRef.current = new BrowserMultiFormatReader(hints);
 
-            setStatus("Kamera Hazır: Kimliği parlatmadan kutuya yaklaştırın.");
+            setStatus("Kamera Hazır: Kimliği Yaklaştırın");
             setIsScanning(true);
         } catch (error) {
-            console.error("Scanner Init Error:", error);
+            console.error("Scanner Error:", error);
             setHasError(true);
-            setStatus("Sistem başlatılamadı.");
+            setStatus("Motor başlatılamadı. Lütfen sayfayı yenileyin.");
         }
     }, []);
 
     useEffect(() => {
         initScanner();
         return () => {
-            if (workerRef.current) workerRef.current.terminate();
+            if (workerRef.current) {
+                workerRef.current.terminate();
+            }
         };
     }, [initScanner]);
 
-    // OTSU'S THRESHOLDING (Dinamik Siyah-Beyaz Eşikleme)
-    // Profesyonel görüntü işleme: Işığa göre eşiği belirler, parlamayı kompanse eder.
-    const applyOtsuThreshold = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-        const imgData = ctx.getImageData(0, 0, width, height);
-        const data = imgData.data;
-        const histogram = new Array(256).fill(0);
-
-        // 1. Grayscale & Histogram
-        for (let i = 0; i < data.length; i += 4) {
-            const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
-            data[i] = data[i + 1] = data[i + 2] = gray;
-            histogram[gray]++;
-        }
-
-        // 2. Otsu Algorithm to find optimal threshold
-        let total = width * height;
-        let sum = 0;
-        for (let i = 0; i < 256; i++) sum += i * histogram[i];
-
-        let sumB = 0;
-        let wB = 0;
-        let wF = 0;
-        let maxVar = 0;
-        let threshold = 0;
-
-        for (let i = 0; i < 256; i++) {
-            wB += histogram[i];
-            if (wB === 0) continue;
-            wF = total - wB;
-            if (wF === 0) break;
-            sumB += i * histogram[i];
-            let mB = sumB / wB;
-            let mF = (sum - sumB) / wF;
-            let varBetween = wB * wF * (mB - mF) * (mB - mF);
-            if (varBetween > maxVar) {
-                maxVar = varBetween;
-                threshold = i;
-            }
-        }
-
-        // 3. Apply Threshold
-        for (let i = 0; i < data.length; i += 4) {
-            const val = data[i] > threshold ? 255 : 0;
-            data[i] = data[i + 1] = data[i + 2] = val;
-        }
-        ctx.putImageData(imgData, 0, 0);
-    };
+    const handleCameraError = useCallback(() => {
+        setHasError(true);
+        setStatus("Kamera izni verilmedi veya erişilemiyor.");
+    }, []);
 
     const toggleFlash = useCallback(async () => {
         if (!webcamRef.current?.video) return;
@@ -138,17 +104,46 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
         } catch (e) { }
     }, [isFlashOn]);
 
-    const handleCameraError = useCallback(() => {
-        setHasError(true);
-        setStatus("Kamera erişim hatası. Lütfen izinleri kontrol edin.");
-    }, []);
+    // Otsu Binarization for better OCR accuracy
+    const applyOtsu = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const data = imgData.data;
+        const hist = new Array(256).fill(0);
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+            hist[gray]++;
+        }
+        let total = width * height;
+        let sum = 0;
+        for (let i = 0; i < 256; i++) sum += i * hist[i];
+        let sumB = 0, wB = 0, maxVar = 0, threshold = 0;
+        for (let i = 0; i < 256; i++) {
+            wB += hist[i];
+            if (wB === 0) continue;
+            let wF = total - wB;
+            if (wF === 0) break;
+            sumB += i * hist[i];
+            let mB = sumB / wB;
+            let mF = (sum - sumB) / wF;
+            let varBetween = wB * wF * (mB - mF) * (mB - mF);
+            if (varBetween > maxVar) {
+                maxVar = varBetween;
+                threshold = i;
+            }
+        }
+        for (let i = 0; i < data.length; i += 4) {
+            const val = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) > threshold ? 255 : 0;
+            data[i] = data[i + 1] = data[i + 2] = val;
+        }
+        ctx.putImageData(imgData, 0, 0);
+    };
 
-    const processMRZ = (text: string) => {
+    const processResults = (text: string) => {
         const lines = text.split('\n')
             .map(l => l.replace(/[^A-Z0-9<]/g, '').trim())
-            .filter(l => l.length >= 20); // Kimlik MRZ satırları uzundur
+            .filter(l => l.length >= 10);
 
-        if (lines.length >= 3) {
+        if (lines.length >= 2) {
             try {
                 const res = parseMRZ(lines);
                 if (res && res.valid) {
@@ -163,167 +158,162 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             } catch (e) { }
         }
 
-        // Regex Fallback (TC 11 hane)
-        const clean = text.toUpperCase().replace(/[^A-Z0-9<]/g, '');
-        const tc = clean.match(/[1-9][0-9]{10}/);
+        const tc = text.toUpperCase().replace(/[^0-9]/g, '').match(/[1-9][0-9]{10}/);
         return tc ? { identityNo: tc[0] } : null;
     };
 
     const performScan = useCallback(async () => {
-        if (!webcamRef.current?.video || !isScanning || success || isBusy.current) return;
+        if (!webcamRef.current?.video || !workerRef.current || !isScanning || success || isBusy.current) return;
 
         isBusy.current = true;
         const video = webcamRef.current.video;
-        if (video.readyState !== 4) {
-            isBusy.current = false;
-            return;
-        }
 
         try {
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
-            // Profesyonel Çözünürlük: 800px genişlik (Netlik/Hız dengesi)
-            const targetWidth = 800;
+            // Speed optimization: 640px is ideal for Tesseract speed/accuracy balance
+            const targetWidth = 640;
             const scale = targetWidth / video.videoWidth;
             const targetHeight = (video.videoHeight * 0.40) * scale;
 
             canvas.width = targetWidth;
             canvas.height = targetHeight;
 
-            // ROI: Görüntünün alt yarısı (MRZ/Barcode alanı)
             ctx.drawImage(
                 video,
-                0, video.videoHeight * 0.50, video.videoWidth, video.videoHeight * 0.40,
+                0, video.videoHeight * 0.55, video.videoWidth, video.videoHeight * 0.40,
                 0, 0, targetWidth, targetHeight
             );
 
-            // OCR YOLU (Otsu Binarizasyon Uygulanmış Görüntüyle)
-            applyOtsuThreshold(ctx, targetWidth, targetHeight);
-            const processedImage = canvas.toDataURL("image/jpeg", 0.9);
-
-            // BARKOD YOLU (Hızlı - İşlenmiş Görüntü ile)
+            // Parallel Path 1: Instant Barcode
             if (codeReaderRef.current) {
                 try {
-                    const bResult = await codeReaderRef.current.decodeFromImageUrl(processedImage);
-                    const parsed = processMRZ(bResult.getText());
+                    const bResult = await codeReaderRef.current.decodeFromCanvasElement(canvas as any);
+                    const parsed = processResults(bResult.getText());
                     if (parsed?.identityNo) {
                         setSuccess(true);
-                        setStatus("Süper Hızlı Okuma: Başarılı!");
+                        setStatus("Bingo! Barkod Okundu.");
                         onScan(parsed);
                         return;
                     }
                 } catch (e) { }
             }
 
-            // OCR YOLU
-            if (workerRef.current) {
-                const { data: { text } } = await workerRef.current.recognize(processedImage);
-                const parsed = processMRZ(text);
+            // Parallel Path 2: Optimized OCR
+            // Every 3rd retry, try WITHOUT binarization for different lighting
+            if (retryCount.current % 3 !== 0) {
+                applyOtsu(ctx, targetWidth, targetHeight);
+            }
+            retryCount.current++;
 
-                if (parsed?.identityNo && parsed.identityNo.length === 11) {
-                    if (lastTC === parsed.identityNo) {
-                        setSuccess(true);
-                        setStatus("Kimlik Başarıyla Doğrulandı!");
-                        onScan(parsed);
-                    } else {
-                        setLastTC(parsed.identityNo);
-                        setStatus(`Doğrulanıyor: ${parsed.identityNo}`);
-                    }
-                } else if (text.includes('<')) {
-                    setStatus("MRZ Algılandı, Çözümleniyor...");
+            // Use canvas directly for recognize to avoid base64 overhead in v7
+            const { data: { text } } = await workerRef.current.recognize(canvas);
+            const parsed = processResults(text);
+
+            if (parsed?.identityNo && parsed.identityNo.length === 11) {
+                if (lastTC === parsed.identityNo) {
+                    setSuccess(true);
+                    setStatus("Kimlik Onaylandı!");
+                    onScan(parsed);
+                } else {
+                    setLastTC(parsed.identityNo);
+                    setStatus(`Taranıyor: ${parsed.identityNo}`);
                 }
+            } else if (text.includes('<')) {
+                setStatus("MRZ Yazıları Algılandı...");
+            } else {
+                setStatus("Kimliği kutu içine ortalayın...");
             }
         } catch (e) {
-            console.error("Scan error:", e);
+            console.error("Scan Failed:", e);
         } finally {
             isBusy.current = false;
         }
     }, [isScanning, success, lastTC, onScan]);
 
     useEffect(() => {
-        const timer = setInterval(performScan, 400); // 400ms döngü
-        return () => clearInterval(timer);
+        const itv = setInterval(performScan, 500);
+        return () => clearInterval(itv);
     }, [performScan]);
 
     return (
-        <div className="flex flex-col items-center space-y-4 p-4">
-            <div className={`relative w-full max-w-sm rounded-[3rem] overflow-hidden border-4 ${success ? 'border-emerald-500 shadow-[0_0_80px_rgba(16,185,129,0.5)]' : (hasError ? 'border-red-500' : 'border-zinc-800')} bg-black aspect-[3/4] transition-all duration-500`}>
+        <div className="flex flex-col items-center space-y-6 p-6 max-w-lg mx-auto bg-card rounded-[3rem] shadow-2xl border-4 border-primary/20">
+            <div className={`relative w-full aspect-[3/4] rounded-[2.5rem] overflow-hidden border-4 transition-all duration-500 ${success ? 'border-emerald-500 shadow-[0_0_80px_rgba(16,185,129,0.3)]' : 'border-zinc-800'} bg-black`}>
                 <Webcam
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
-                    videoConstraints={{
-                        facingMode: "environment",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }}
+                    videoConstraints={{ facingMode: "environment" }}
                     onUserMediaError={handleCameraError}
-                    className="w-full h-full object-cover scale-105"
+                    className="w-full h-full object-cover"
                 />
 
-                {!success && !hasError && (
-                    <>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <div className="w-[88%] h-1/4 border-2 border-emerald-400/60 rounded-[2.5rem] relative shadow-[0_0_100px_rgba(16,185,129,0.2)] bg-emerald-500/5 backdrop-blur-[1px]">
-                                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
-                                <div className="absolute -bottom-14 left-0 w-full text-center">
-                                    <div className="inline-flex items-center gap-2 bg-black/80 px-5 py-2.5 rounded-full border-2 border-emerald-500/50">
-                                        <Zap className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-                                        <span className="text-[11px] text-emerald-500 font-black tracking-[0.2em] uppercase">
-                                            PROFESYONEL MOD
-                                        </span>
-                                    </div>
+                {!success && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <div className="w-[85%] h-1/4 border-2 border-emerald-400/40 rounded-[2rem] relative bg-emerald-500/5 backdrop-blur-[1px]">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
+                            <div className="absolute -top-10 left-0 w-full flex justify-center">
+                                <div className="bg-black/60 px-4 py-1.5 rounded-full border border-emerald-500/30 backdrop-blur-md">
+                                    <span className="text-[10px] text-emerald-400 font-black tracking-widest uppercase">TARAMA ALANI</span>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                )}
 
-                        <div className="absolute top-8 left-8 flex items-center gap-3 bg-zinc-950/80 backdrop-blur-2xl px-5 py-2.5 rounded-full border border-white/10 shadow-2xl">
-                            <div className="relative">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                                <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></div>
-                            </div>
-                            <span className="text-[10px] font-black text-white/90 tracking-widest uppercase">OTSU-ANALYSIS</span>
+                {/* Progress Bar for Tesseract Loading */}
+                {!isScanning && !hasError && (
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center">
+                        <Loader2 className="w-12 h-12 text-primary animate-spin mb-6" />
+                        <h3 className="text-white font-black tracking-tighter text-xl mb-4">{status}</h3>
+                        <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden max-w-[200px]">
+                            <div className="bg-primary h-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
                         </div>
-
-                        <div className="absolute bottom-12 right-10 z-30">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={toggleFlash}
-                                className={`rounded-full h-16 w-16 border-2 shadow-2xl transition-all duration-300 ${isFlashOn ? 'bg-yellow-400 border-yellow-300 text-black scale-110' : 'bg-black/60 border-white/20 text-white hover:bg-black/80'}`}
-                            >
-                                {isFlashOn ? <FlashlightOff className="h-8 w-8" /> : <Flashlight className="h-8 w-8" />}
-                            </Button>
-                        </div>
-                    </>
+                        <p className="text-zinc-500 text-xs mt-4 font-bold uppercase tracking-widest">Motor Hazırlanıyor: %{progress}</p>
+                    </div>
                 )}
 
                 {success && (
-                    <div className="absolute inset-0 bg-emerald-600/95 backdrop-blur-3xl flex flex-col items-center justify-center z-20 animate-in fade-in zoom-in duration-700">
-                        <div className="bg-white rounded-full p-6 mb-8 shadow-4xl animate-bounce">
-                            <ShieldCheck className="h-20 w-20 text-emerald-600" />
+                    <div className="absolute inset-0 bg-emerald-600/90 backdrop-blur-2xl flex flex-col items-center justify-center z-50 animate-in fade-in zoom-in duration-500">
+                        <div className="bg-white rounded-full p-6 mb-6 shadow-4xl animate-bounce">
+                            <ShieldCheck className="h-16 w-16 text-emerald-600" />
                         </div>
-                        <h3 className="text-4xl font-black text-white tracking-tighter uppercase italic">İşlem Tamam!</h3>
-                        <p className="text-emerald-100 font-bold mt-2 opacity-80 uppercase tracking-[0.3em] text-[11px]">Sub-Second Verification</p>
+                        <h2 className="text-3xl font-black text-white tracking-tighter">BAŞARILI!</h2>
+                        <p className="text-emerald-100 font-bold opacity-80 uppercase tracking-widest text-[10px] mt-2">Veriler Aktarılıyor</p>
                     </div>
                 )}
+
+                <div className="absolute bottom-8 right-8 z-30">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={toggleFlash}
+                        className={`rounded-full h-14 w-14 border-2 shadow-2xl transition-all ${isFlashOn ? 'bg-yellow-400 border-yellow-300 text-black' : 'bg-black/40 border-white/20 text-white'}`}
+                    >
+                        {isFlashOn ? <FlashlightOff className="h-7 w-7" /> : <Flashlight className="h-7 w-7" />}
+                    </Button>
+                </div>
             </div>
 
-            <div className="text-center w-full max-w-sm px-4">
-                <div className={`p-6 rounded-[2.5rem] mb-6 transition-all duration-500 ${success ? 'bg-emerald-500/10 border-emerald-500/40 shadow-emerald-500/5' : 'bg-secondary/40 border-zinc-200 dark:border-zinc-800'} border-2 shadow-xl backdrop-blur-sm`}>
-                    <p className={`text-sm font-black tracking-tight uppercase ${success ? 'text-emerald-500' : 'text-zinc-600 dark:text-zinc-400'}`}>
+            <div className="w-full space-y-4">
+                <div className={`p-6 rounded-[2rem] border-2 transition-all duration-300 ${success ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'}`}>
+                    <p className={`text-sm font-black text-center tracking-tight uppercase ${success ? 'text-emerald-500' : 'text-zinc-500'}`}>
                         {status}
                     </p>
                     {lastTC && !success && (
-                        <div className="mt-4 flex items-center justify-center gap-3 py-2.5 px-6 bg-emerald-500/10 rounded-2xl border border-emerald-500/30 animate-in slide-in-from-top-4">
-                            <span className="text-xs font-black text-emerald-600 tracking-widest">KİMLİK: {lastTC}</span>
+                        <div className="mt-4 flex flex-col items-center">
+                            <div className="px-6 py-2 bg-primary/10 rounded-full border border-primary/20">
+                                <span className="text-xs font-black text-primary tracking-widest">ID: {lastTC}</span>
+                            </div>
+                            <p className="text-[10px] text-zinc-400 mt-2 font-bold uppercase tracking-tighter">İkinci Onay Bekleniyor...</p>
                         </div>
                     )}
                 </div>
+
                 {!success && (
-                    <Button variant="ghost" onClick={onClose} className="w-full rounded-2xl text-zinc-500 font-bold hover:bg-zinc-100 h-14 uppercase tracking-widest text-[10px] opacity-60">
-                        Vazgeç ve Kapat
+                    <Button variant="ghost" onClick={onClose} className="w-full rounded-2xl text-zinc-400 font-black h-12 uppercase tracking-[0.2em] text-[10px]">
+                        İşlemi İptal Et
                     </Button>
                 )}
             </div>
