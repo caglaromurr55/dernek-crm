@@ -3,7 +3,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
 import { createWorker } from "tesseract.js";
-import { Camera, RefreshCw, XCircle } from "lucide-react";
+import { RefreshCw, XCircle, CheckCircle2, Scan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MrzScannerProps {
@@ -18,119 +18,87 @@ interface MrzScannerProps {
 
 export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     const webcamRef = useRef<Webcam>(null);
+    const workerRef = useRef<any>(null);
     const [isScanning, setIsScanning] = useState(false);
-    const [status, setStatus] = useState("Kamera bekleniyor...");
-    const [progress, setProgress] = useState(0);
+    const [status, setStatus] = useState("Sistem hazırlanıyor...");
     const [hasError, setHasError] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [lastTC, setLastTC] = useState("");
 
-    useEffect(() => {
-        if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
-            setStatus("HATA: Kamera erişimi için HTTPS (SSL) gereklidir. Lütfen siteyi güvenli bağlantı üzerinden açın.");
+    // Initialize Tesseract Worker
+    const initWorker = useCallback(async () => {
+        try {
+            const worker = await (createWorker as any)('eng', 1);
+            if (worker.setParameters) {
+                await worker.setParameters({
+                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
+                    tessedit_pageseg_mode: '6',
+                });
+            }
+            workerRef.current = worker;
+            setStatus("Kimlik MRZ bölgesini çerçeveye hizalayın.");
+            setIsScanning(true);
+        } catch (error) {
+            console.error("Worker error:", error);
             setHasError(true);
-        } else {
-            setStatus("Kimlik kartının arka yüzünü (Barkodlu alan) kameraya tutun.");
+            setStatus("Sistem başlatılamadı.");
         }
     }, []);
 
-    const handleCameraError = useCallback((error: string | DOMException) => {
-        console.error("Kamera hatası:", error);
+    useEffect(() => {
+        initWorker();
+        return () => {
+            if (workerRef.current) workerRef.current.terminate();
+        };
+    }, [initWorker]);
+
+    const handleCameraError = useCallback(() => {
         setHasError(true);
-        if (error.toString().includes("NotAllowedError") || error.toString().includes("Permission denied")) {
-            setStatus("Kamera izni reddedildi. Lütfen tarayıcı ayarlarından kamera iznini onaylayın.");
-        } else if (error.toString().includes("NotFoundError")) {
-            setStatus("Kamera bulunamadı. Lütfen cihazınızda kamera olduğundan emin olun.");
-        } else {
-            setStatus("Kamera başlatılamadı. Başka bir uygulama kamerayı kullanıyor olabilir.");
-        }
+        setStatus("Kamera erişim hatası.");
     }, []);
 
     const parseMRZ = (text: string) => {
-        // Tesseract'tan gelen metni temizle (sadece harf, rakam ve <)
-        const cleanText = text.replace(/[^A-Z0-9<]/g, '');
-
-        // TD1 formatı (Türkiye Kimliği) için 3 satır, her biri 30 karakterdir.
-        const lines: string[] = [];
-        if (cleanText.length >= 90) {
-            lines.push(cleanText.substring(0, 30));
-            lines.push(cleanText.substring(30, 60));
-            lines.push(cleanText.substring(60, 90));
-        } else {
-            // Eğer blok halinde gelmediyse, satır bazlı bölmeyi tamir edelim
-            const rawLines = text.split('\n')
-                .map(l => l.replace(/[^A-Z0-9<]/g, ''))
-                .filter(l => l.length >= 10);
-
-            for (let i = 0; i < 3; i++) {
-                let l = rawLines[i] || "";
-                if (l.length > 30) l = l.substring(0, 30);
-                while (l.length < 30) l += "<";
-                lines.push(l);
-            }
-        }
+        const normalized = text.toUpperCase()
+            .replace(/[ \n\r]/g, '')
+            .replace(/O/g, '0')
+            .replace(/[IL]/g, '1')
+            .replace(/S/g, '5')
+            .replace(/B/g, '8');
 
         let identityNo = "";
         let firstName = "";
         let lastName = "";
         let birthDate = "";
 
-        const line2 = lines[1]; // Doğum, Cinsiyet, TC No satırı
-        const line3 = lines[2]; // Soyisim ve İsim satırı
+        // Attempt 1: Look for 11-digit TC
+        const tcMatch = normalized.match(/[1-9][0-9]{10}/);
+        if (tcMatch) identityNo = tcMatch[0];
 
-        // 1. TC No Yakalama (Line 2: 19-30 arası)
-        if (line2 && line2.length === 30) {
-            // Türkiye'de TC No 19. karakterden başlar ve 11 hane sürer.
-            let tcPart = line2.substring(18, 29);
-            // OCR hatalarını düzelt
-            tcPart = tcPart.replace(/O/g, '0').replace(/[ISL]/g, '1').replace(/S/g, '5').replace(/B/g, '8');
+        // Attempt 2: Split by lines and find TUR
+        const lines = text.split('\n').map(l => l.replace(/[^A-Z0-9<]/g, ''));
+        const line3 = lines.find(l => l.includes('<<')) || "";
 
-            if (tcPart.length === 11 && /^\d+$/.test(tcPart)) {
-                identityNo = tcPart;
-            }
-
-            // 2. Doğum Tarihi (Line 2: 1-6 arası -> YYMMDD)
-            let dobPart = line2.substring(0, 6);
-            dobPart = dobPart.replace(/O/g, '0').replace(/[ISL]/g, '1');
-            if (dobPart.length === 6 && /^\d+$/.test(dobPart)) {
-                const yearPrefix = parseInt(dobPart.substring(0, 2)) > 50 ? '19' : '20';
-                birthDate = `${yearPrefix}${dobPart.substring(0, 2)}-${dobPart.substring(2, 4)}-${dobPart.substring(4, 6)}`;
-            }
+        if (line3.includes('<<')) {
+            const parts = line3.split('<<');
+            lastName = parts[0].replace(/</g, ' ').trim();
+            firstName = parts[1]?.split('<')[0].replace(/</g, ' ').trim() || "";
         }
 
-        // 3. İsim ve Soyisim (Line 3: LASTNAME<<FIRSTNAME)
-        if (line3 && line3.length === 30) {
-            const nameMatch = line3.split('<<');
-            if (nameMatch.length >= 2) {
-                lastName = nameMatch[0].replace(/</g, ' ').trim();
-                firstName = nameMatch[1].replace(/</g, ' ').trim();
-                // firstName içinde bazen ek isimler < ile ayrılır, onları boşluğa çevir
-                firstName = firstName.split('<')[0].trim();
-            }
+        const dobMatch = normalized.match(/TUR([0-9]{6})/);
+        if (dobMatch) {
+            const dob = dobMatch[1];
+            const yearPrefix = parseInt(dob.substring(0, 2)) > 50 ? '19' : '20';
+            birthDate = `${yearPrefix}${dob.substring(0, 2)}-${dob.substring(2, 4)}-${dob.substring(4, 6)}`;
         }
 
-        // Fallback: Eğer manuel TC bulamadıysa raw text içinden 11 hane ara
-        if (!identityNo || identityNo.length !== 11) {
-            const textWithNumbersMerged = text.toUpperCase()
-                .replace(/O/g, '0')
-                .replace(/[IL]/g, '1')
-                .replace(/S/g, '5')
-                .replace(/B/g, '8')
-                .replace(/[Z]/g, '2');
-            const tcMatch = textWithNumbersMerged.replace(/[^0-9]/g, '').match(/([1-9][0-9]{10})/);
-            if (tcMatch) identityNo = tcMatch[1];
-        }
-
-        return { identityNo, firstName, lastName, birthDate, rawText: text };
+        return { identityNo, firstName, lastName, birthDate };
     };
 
-    const captureAndScan = useCallback(async () => {
-        if (!webcamRef.current) return;
+    const performScan = useCallback(async () => {
+        if (!webcamRef.current || !workerRef.current || !isScanning || success) return;
 
         const imageSrc = webcamRef.current.getScreenshot();
         if (!imageSrc) return;
-
-        setIsScanning(true);
-        setStatus("Görüntü iyileştiriliyor...");
-        setProgress(0);
 
         try {
             const img = new Image();
@@ -140,123 +108,106 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d")!;
 
-            const roiHeight = img.height * 0.45;
+            const roiHeight = img.height * 0.40;
             const roiY = img.height * 0.55;
-
             canvas.width = img.width;
             canvas.height = roiHeight;
 
-            ctx.filter = "grayscale(100%) contrast(250%) brightness(110%)";
+            ctx.filter = "grayscale(100%) contrast(300%) brightness(100%)";
             ctx.drawImage(img, 0, roiY, img.width, roiHeight, 0, 0, img.width, roiHeight);
 
-            const processedImage = canvas.toDataURL("image/jpeg", 0.9);
+            const processedImage = canvas.toDataURL("image/jpeg", 0.8);
+            const { data: { text } } = await workerRef.current.recognize(processedImage);
 
-            setStatus("Metin çözümleniyor (OCR)...");
-            const worker: any = await (createWorker as any)('eng', 1, {
-                logger: (m: any) => {
-                    if (m && m.status === 'recognizing text') {
-                        setProgress(Math.floor(m.progress * 100));
-                    }
+            const results = parseMRZ(text);
+
+            if (results.identityNo && results.identityNo.length === 11) {
+                if (lastTC === results.identityNo) {
+                    setSuccess(true);
+                    setStatus("Başarıyla doğrulandı!");
+                    onScan(results);
+                } else {
+                    setLastTC(results.identityNo);
+                    setStatus(`Okunuyor: ${results.identityNo}...`);
                 }
-            });
-
-            if (worker.setParameters) {
-                await worker.setParameters({
-                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
-                });
             }
-
-            const { data: { text } } = await worker.recognize(processedImage);
-            await worker.terminate();
-
-            const parsedData = parseMRZ(text);
-
-            if (parsedData.identityNo) {
-                setStatus("Başarıyla okundu!");
-                onScan({
-                    identityNo: parsedData.identityNo,
-                    firstName: parsedData.firstName || undefined,
-                    lastName: parsedData.lastName || undefined,
-                    birthDate: parsedData.birthDate || undefined
-                });
-            } else {
-                setStatus("Okunamadı. Lütfen kimliği daha yakından ve sabit tutun.");
-            }
-
-        } catch (error) {
-            console.error("Tarama hatası:", error);
-            setStatus("Tarama sırasında bir hata oluştu.");
-        } finally {
-            setIsScanning(false);
+        } catch (e) {
+            // Silently fail frame
         }
-    }, [webcamRef, onScan]);
+    }, [isScanning, success, lastTC, onScan]);
 
     useEffect(() => {
-        const timer = setTimeout(() => setStatus("Kimlik kartının arka yüzünü (Barkodlu alan) kameraya tutun."), 1500);
-        return () => clearTimeout(timer);
-    }, []);
+        let timer: any;
+        if (isScanning && !success && !hasError) {
+            timer = setInterval(performScan, 800);
+        }
+        return () => clearInterval(timer);
+    }, [isScanning, success, hasError, performScan]);
 
     return (
         <div className="flex flex-col items-center space-y-4 p-4">
-            <div className={`relative w-full max-w-sm rounded-lg overflow-hidden border-2 ${hasError ? 'border-red-500/50' : 'border-dashed border-zinc-300 dark:border-zinc-700'} bg-black transition-colors`}>
+            <div className={`relative w-full max-w-sm rounded-[2rem] overflow-hidden border-4 ${success ? 'border-emerald-500 shadow-2xl shadow-emerald-500/20' : (hasError ? 'border-red-500' : 'border-zinc-800')} bg-black aspect-[3/4] transition-all duration-500`}>
                 <Webcam
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
                     videoConstraints={{ facingMode: "environment" }}
                     onUserMediaError={handleCameraError}
-                    className="w-full h-auto object-cover opacity-80"
+                    className="w-full h-full object-cover scale-110"
                 />
 
-                {!hasError && (
-                    <div className="absolute inset-0 border-4 border-emerald-500/50 m-8 rounded-md flex items-center justify-center pointer-events-none">
-                        <div className="w-full h-2/5 bg-emerald-500/20 top-1/2 absolute border-t border-emerald-500/50 flex items-center justify-center">
-                            <span className="text-white text-[10px] font-semibold uppercase bg-black/50 px-2 py-1 rounded">
-                                MRZ Bölgesi
-                            </span>
+                {!success && !hasError && (
+                    <>
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-[85%] h-1/4 border-2 border-emerald-500/50 rounded-2xl relative shadow-[0_0_50px_rgba(16,185,129,0.2)]">
+                                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
+                                <div className="absolute -bottom-8 left-0 w-full text-center">
+                                    <span className="text-[10px] text-emerald-400 font-bold tracking-widest uppercase bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                                        Canlı Tarama Aktif
+                                    </span>
+                                </div>
+                            </div>
                         </div>
+                        <div className="absolute top-4 right-4 animate-pulse flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+                            <span className="text-[10px] font-black text-white/50 uppercase tracking-tighter">REC</span>
+                        </div>
+                    </>
+                )}
+
+                {success && (
+                    <div className="absolute inset-0 bg-emerald-600/90 backdrop-blur-md flex flex-col items-center justify-center z-20 animate-in zoom-in duration-300">
+                        <CheckCircle2 className="h-20 w-20 text-white mb-4 animate-bounce" />
+                        <h3 className="text-2xl font-black text-white">BİLGİLER OKUNDU</h3>
+                        <p className="text-emerald-100 font-medium mt-1">Veri aktarılıyor...</p>
                     </div>
                 )}
 
                 {hasError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950/90 backdrop-blur-sm">
-                        <XCircle className="h-12 w-12 text-red-500 mb-3" />
-                        <p className="text-sm font-bold text-red-400">Kamera Bağlantısı Koptu</p>
-                        <p className="text-[10px] text-zinc-500 mt-2 italic px-4 leading-relaxed">
-                            Güvenli bağlantı (HTTPS) veya tarayıcı izinlerini kontrol edin.
-                        </p>
-                    </div>
-                )}
-
-                {isScanning && (
-                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 transition-all">
-                        <RefreshCw className="h-10 w-10 text-emerald-500 animate-spin mb-4" />
-                        <p className="text-emerald-500 font-medium">Analiz ediliyor: %{progress}</p>
+                    <div className="absolute inset-0 bg-red-950/90 backdrop-blur-md flex flex-col items-center justify-center z-20">
+                        <XCircle className="h-16 w-16 text-red-500 mb-4" />
+                        <p className="font-bold text-red-100">Kamera Erişilemiyor</p>
+                        <Button variant="outline" size="sm" className="mt-4 border-red-500/30 text-red-400" onClick={() => window.location.reload()}>Tekrar Dene</Button>
                     </div>
                 )}
             </div>
 
-            <div className="text-center w-full">
-                <p className={`text-sm mb-4 ${status.includes("hata") || status.includes("algılanamadı") ? 'text-red-500' : 'text-muted-foreground'}`}>
-                    {status}
-                </p>
-                <div className="flex gap-4 justify-center">
-                    <Button variant="outline" onClick={onClose} disabled={isScanning}>
-                        İptal
-                    </Button>
-                    <Button
-                        onClick={captureAndScan}
-                        className="bg-emerald-600 hover:bg-emerald-700"
-                        disabled={isScanning}
-                    >
-                        {isScanning ? (
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Camera className="mr-2 h-4 w-4" />
-                        )}
-                        Tara
-                    </Button>
+            <div className="text-center w-full px-4">
+                <div className={`p-4 rounded-3xl mb-4 transition-colors ${success ? 'bg-emerald-500/10' : 'bg-secondary/50'}`}>
+                    <p className={`text-sm font-bold ${success ? 'text-emerald-500' : 'text-foreground/70'}`}>
+                        {status}
+                    </p>
+                    {lastTC && !success && (
+                        <div className="mt-2 flex items-center justify-center gap-2 text-[10px] font-black text-emerald-500/60 transition-all opacity-0 animate-in fade-in slide-in-from-bottom-2">
+                            <Scan className="w-3 h-3" /> DOĞRULANIYOR: {lastTC}
+                        </div>
+                    )}
                 </div>
+                {!success && (
+                    <Button variant="ghost" onClick={onClose} className="rounded-2xl text-muted-foreground font-bold hover:bg-zinc-100">
+                        Tarayıcıyı Kapat
+                    </Button>
+                )}
             </div>
         </div>
     );
