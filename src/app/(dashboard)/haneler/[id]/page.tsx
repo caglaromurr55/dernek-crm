@@ -216,13 +216,13 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                     </Card>
 
                     <Tabs defaultValue="members" className="space-y-6">
-                        <div className="flex justify-between items-center px-1">
-                            <TabsList className="bg-transparent h-12 gap-2 p-0 flex-wrap overflow-x-auto">
-                                <TabsTrigger value="members" className="rounded-full px-4 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm border text-xs sm:text-sm">Hane Sakinleri</TabsTrigger>
-                                <TabsTrigger value="history" className="rounded-full px-4 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm border text-xs sm:text-sm">Bağış & Dağıtım</TabsTrigger>
-                                <TabsTrigger value="boutique" className="rounded-full px-4 data-[state=active]:bg-orange-500 data-[state=active]:text-white shadow-sm border border-orange-200 text-xs sm:text-sm whitespace-nowrap"><ShoppingCart className="w-3.5 h-3.5 mr-1 inline" /> Butik Bakiyesi & Harcama</TabsTrigger>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
+                            <TabsList className="bg-zinc-100/80 dark:bg-zinc-900/80 h-auto p-1.5 flex flex-wrap sm:flex-nowrap rounded-2xl gap-1 overflow-visible border border-zinc-200/50 dark:border-zinc-800/50">
+                                <TabsTrigger value="members" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:text-emerald-600 data-[state=active]:shadow-lg shadow-black/5 text-xs sm:text-sm font-bold transition-all">Hane Sakinleri</TabsTrigger>
+                                <TabsTrigger value="history" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:text-emerald-600 data-[state=active]:shadow-lg shadow-black/5 text-xs sm:text-sm font-bold transition-all">Bağış & Dağıtım</TabsTrigger>
+                                <TabsTrigger value="boutique" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-orange-50 dark:data-[state=active]:bg-orange-950/30 data-[state=active]:text-orange-600 data-[state=active]:shadow-lg shadow-orange-500/10 text-xs sm:text-sm font-bold whitespace-nowrap transition-all"><ShoppingCart className="w-4 h-4 mr-2 inline" /> Butik İşlemleri</TabsTrigger>
                             </TabsList>
-                            <TabsContent value="members" className="m-0">
+                            <TabsContent value="members" className="m-0 sm:ml-auto w-full sm:w-auto mt-0">
                                 <PersonAddModal householdId={household.id} />
                             </TabsContent>
                         </div>
@@ -420,7 +420,7 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                             </div>
 
                             <div className="space-y-3">
-                                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Gider Kırılımları</h4>
+                                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Giderler</h4>
                                 <div className="bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
                                     {[
                                         { label: "Kira", val: household.rentAmount || 0 },

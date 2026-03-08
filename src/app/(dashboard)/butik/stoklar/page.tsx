@@ -11,7 +11,11 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import {
-    Shirt, Plus, Printer, RefreshCw, Barcode as BarcodeIcon, Search
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+    Shirt, Plus, Printer, RefreshCw, Barcode as BarcodeIcon, Search, PackagePlus
 } from "lucide-react";
 import { getBoutiqueItemsAction, createBoutiqueItemAction, updateBoutiqueStockAction } from "@/app/actions/boutique";
 import { toast } from "sonner";
@@ -40,6 +44,12 @@ export default function BoutiqueInventoryPage() {
 
     // Scanner
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+    // Stock Update Modal
+    const [stockModalOpen, setStockModalOpen] = useState(false);
+    const [selectedItemForStock, setSelectedItemForStock] = useState<any>(null);
+    const [addStockAmount, setAddStockAmount] = useState("5");
+    const [isUpdatingStock, setIsUpdatingStock] = useState(false);
 
     useEffect(() => {
         loadItems();
@@ -104,6 +114,34 @@ export default function BoutiqueInventoryPage() {
                 window.location.reload(); // State kurtarmak için reload at
             }
         }, 100);
+    };
+
+    const openStockModal = (item: any) => {
+        setSelectedItemForStock(item);
+        setAddStockAmount("5");
+        setStockModalOpen(true);
+    };
+
+    const handleUpdateStock = async () => {
+        if (!selectedItemForStock) return;
+        const amount = parseInt(addStockAmount, 10);
+        if (isNaN(amount) || amount <= 0) {
+            toast.error("Geçerli bir ekleme miktarı girin.");
+            return;
+        }
+
+        setIsUpdatingStock(true);
+        const newStock = selectedItemForStock.stock + amount;
+
+        const res = await updateBoutiqueStockAction(selectedItemForStock.id, newStock);
+        if (res.success) {
+            toast.success("Stok başarıyla güncellendi.");
+            setStockModalOpen(false);
+            loadItems(); // Verileri tazelemek için liste tekrar yüklenir
+        } else {
+            toast.error(res.message || "Stok güncellenirken hata oluştu.");
+        }
+        setIsUpdatingStock(false);
     };
 
     return (
@@ -219,7 +257,7 @@ export default function BoutiqueInventoryPage() {
                             </div>
 
                             <Button type="submit" disabled={isSubmitting} className="w-full font-semibold h-10 mt-4">
-                                {isSubmitting ? "Kaydediliyor..." : "Stoka Ekle"}
+                                {isSubmitting ? "Kaydediliyor..." : "Yeni Ürün Olarak Kaydet"}
                             </Button>
                         </form>
                     </CardContent>
@@ -281,15 +319,25 @@ export default function BoutiqueInventoryPage() {
                                                     {item.points} Puan
                                                 </TableCell>
                                                 <TableCell className="p-4 text-right">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 group hover:bg-primary/10 hover:text-primary transition-colors"
-                                                        onClick={() => handlePrint(item)}
-                                                    >
-                                                        <Printer className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
-                                                        Yazdır
-                                                    </Button>
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8 border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                                            onClick={() => openStockModal(item)}
+                                                        >
+                                                            <PackagePlus className="w-3.5 h-3.5 mr-1.5" /> Stok Ekle
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 group hover:bg-primary/10 hover:text-primary transition-colors"
+                                                            onClick={() => handlePrint(item)}
+                                                        >
+                                                            <Printer className="w-4 h-4" />
+                                                            <span className="sr-only">Yazdır</span>
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -300,6 +348,42 @@ export default function BoutiqueInventoryPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Stok Ekleme Modalı */}
+            <Dialog open={stockModalOpen} onOpenChange={setStockModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <PackagePlus className="w-5 h-5 text-emerald-600" /> Hızlı Stok Ekleme
+                        </DialogTitle>
+                        <DialogDescription>
+                            {selectedItemForStock && (
+                                <span className="block mt-2 font-medium text-foreground">
+                                    <strong>{selectedItemForStock.name}</strong> ürününe yeni partiler eklenecek. Mevcut Stok: <span className="text-emerald-600 font-bold">{selectedItemForStock.stock}</span>
+                                </span>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="addAmount" className="font-bold text-xs text-muted-foreground">EKLENECEK ADET (Örn: 5)</Label>
+                        <Input
+                            id="addAmount"
+                            type="number"
+                            min="1"
+                            value={addStockAmount}
+                            onChange={(e) => setAddStockAmount(e.target.value)}
+                            className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-2">Girdiğiniz adet, mevcut stokla toplanacaktır.</p>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setStockModalOpen(false)}>İptal</Button>
+                        <Button onClick={handleUpdateStock} disabled={isUpdatingStock} className="bg-emerald-600 hover:bg-emerald-700">
+                            {isUpdatingStock ? "Ekleniyor..." : "Stoka Ekle"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Gizli Yazdırma Alanı (Görünmez, sadece print edilirken aktif) */}
             <div className="hidden">

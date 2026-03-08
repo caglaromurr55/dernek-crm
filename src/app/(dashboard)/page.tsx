@@ -146,7 +146,7 @@ export default async function Home() {
             </div>
           </CardContent>
           <div className="p-4 bg-secondary/30 border-t border-border text-center">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Gelişmiş Skorlama V3-V4 Aktif</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Gelişmiş Skorlama V6 Algoritması Aktif</p>
           </div>
         </Card>
       </div>

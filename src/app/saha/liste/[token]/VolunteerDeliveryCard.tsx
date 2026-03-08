@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { PackageCheck, MapPin, Phone, CheckCircle2, Navigation, ScanLine, X, Eraser, PenTool } from "lucide-react";
+import { PackageCheck, MapPin, Phone, CheckCircle2, Navigation, ScanLine, X, Eraser, PenTool, Flashlight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,22 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
     const [isScanning, setIsScanning] = useState(false);
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const sigPad = useRef<SignatureCanvas>(null);
+    const [isFlashOn, setIsFlashOn] = useState(false);
+    const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const toggleFlash = async () => {
+        const scanner = html5QrCodeRef.current;
+        if (scanner && scanner.getState() === 2) {
+            try {
+                await scanner.applyVideoConstraints({
+                    advanced: [{ torch: !isFlashOn } as any]
+                });
+                setIsFlashOn(!isFlashOn);
+            } catch (err) {
+                console.error("Flaş hatası:", err);
+            }
+        }
+    };
 
     const applicant = delivery.household.persons.find((p: any) => p.isApplicant) || delivery.household.persons[0];
     const allowedIdentities = delivery.household.persons.map((p: any) => p.identityNo);
@@ -50,6 +66,7 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
                     await html5QrCodeRef.current.stop();
                 }
             } catch (err) { console.error(err); }
+            try { html5QrCodeRef.current.clear(); } catch (e) { }
             html5QrCodeRef.current = null;
         }
         setIsScanning(false);
@@ -58,14 +75,27 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
     const startScanning = async () => {
         setErrorMsg("");
         setIsScanning(true);
-        setTimeout(async () => {
+        setIsFlashOn(false);
+
+        if (initTimeoutRef.current) {
+            clearTimeout(initTimeoutRef.current);
+        }
+
+        initTimeoutRef.current = setTimeout(async () => {
             try {
                 const element = document.getElementById(`reader-${delivery.id}`);
                 if (!element) return;
-                html5QrCodeRef.current = new Html5Qrcode(`reader-${delivery.id}`);
-                await html5QrCodeRef.current.start(
+
+                if (html5QrCodeRef.current) {
+                    await stopScanning();
+                }
+
+                const scanner = new Html5Qrcode(`reader-${delivery.id}`);
+                html5QrCodeRef.current = scanner;
+
+                await scanner.start(
                     { facingMode: "environment" },
-                    { fps: 15, qrbox: { width: 250, height: 150 } },
+                    { fps: 20, qrbox: { width: 250, height: 150 }, disableFlip: false },
                     (decodedText) => {
                         setTcInput(decodedText.trim());
                         stopScanning();
@@ -76,7 +106,7 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
                 setErrorMsg("Kamera başlatılamadı.");
                 setIsScanning(false);
             }
-        }, 500);
+        }, 300);
     };
 
     const handleVerifySubmit = (e: React.FormEvent) => {
@@ -195,10 +225,19 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
                         {step === "VERIFICATION" ? (
                             <form onSubmit={handleVerifySubmit} className="space-y-6">
                                 {isScanning ? (
-                                    <div className="relative border-4 border-zinc-900 rounded-[2rem] overflow-hidden bg-black aspect-video shadow-2xl">
-                                        <div id={`reader-${delivery.id}`} className="h-full w-full" />
-                                        <Button type="button" size="icon" variant="destructive" className="absolute top-4 right-4 rounded-full h-10 w-10 shadow-xl" onClick={stopScanning}>
+                                    <div className="relative border-4 border-zinc-900 rounded-[2rem] overflow-hidden bg-black aspect-video md:aspect-square md:max-h-[300px] shadow-2xl flex items-center justify-center">
+                                        <div id={`reader-${delivery.id}`} className="h-full w-full object-cover" />
+                                        <Button type="button" size="icon" variant="destructive" className="absolute top-4 right-4 rounded-full h-10 w-10 shadow-xl z-20" onClick={stopScanning}>
                                             <X className="h-5 w-5" />
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="icon"
+                                            className="absolute bottom-4 right-4 rounded-full h-10 w-10 shadow-xl z-20 bg-background/80 hover:bg-background"
+                                            onClick={toggleFlash}
+                                        >
+                                            <Flashlight className={`h-5 w-5 ${isFlashOn ? 'text-yellow-500' : 'text-foreground'}`} />
                                         </Button>
                                     </div>
                                 ) : (

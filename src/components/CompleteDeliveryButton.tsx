@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Check, CheckCircle2, PackageCheck, ScanLine, X, Eraser } from "lucide-react";
+import { Check, CheckCircle2, PackageCheck, ScanLine, X, Eraser, Flashlight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,22 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
     const [tcInput, setTcInput] = useState("");
     const [isScanning, setIsScanning] = useState(false);
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+    const [isFlashOn, setIsFlashOn] = useState(false);
+    const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const toggleFlash = async () => {
+        const scanner = html5QrCodeRef.current;
+        if (scanner && scanner.getState() === 2) {
+            try {
+                await scanner.applyVideoConstraints({
+                    advanced: [{ torch: !isFlashOn } as any]
+                });
+                setIsFlashOn(!isFlashOn);
+            } catch (err) {
+                console.error("Flaş hatası:", err);
+            }
+        }
+    };
 
     // Signature State
     const sigPad = useRef<SignatureCanvas>(null);
@@ -49,6 +65,9 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
             } catch (err) {
                 console.error("Kamera durdurma hatası:", err);
             }
+            try {
+                html5QrCodeRef.current.clear();
+            } catch (e) { }
             html5QrCodeRef.current = null;
         }
         setIsScanning(false);
@@ -57,9 +76,13 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
     const startScanning = async () => {
         setErrorMsg("");
         setIsScanning(true);
+        setIsFlashOn(false);
 
-        // Div render olmasını bekleyelim
-        setTimeout(async () => {
+        if (initTimeoutRef.current) {
+            clearTimeout(initTimeoutRef.current);
+        }
+
+        initTimeoutRef.current = setTimeout(async () => {
             try {
                 const element = document.getElementById("delivery-barcode-reader");
                 if (!element) return;
@@ -68,15 +91,17 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
                     await stopScanning();
                 }
 
-                html5QrCodeRef.current = new Html5Qrcode("delivery-barcode-reader");
+                const scanner = new Html5Qrcode("delivery-barcode-reader", { verbose: false });
+                html5QrCodeRef.current = scanner;
 
                 const config = {
-                    fps: 15,
+                    fps: 20,
                     qrbox: { width: 250, height: 150 },
-                    aspectRatio: 1.0
+                    aspectRatio: 1.0,
+                    disableFlip: false
                 };
 
-                await html5QrCodeRef.current.start(
+                await scanner.start(
                     { facingMode: "environment" },
                     config,
                     (decodedText) => {
@@ -90,7 +115,7 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
                 setErrorMsg("Kamera başlatılamadı. Lütfen izinleri ve SSL bağlantısını kontrol edin.");
                 setIsScanning(false);
             }
-        }, 600);
+        }, 300);
     };
 
     const handleVerifySubmit = (e: React.FormEvent) => {
@@ -199,9 +224,18 @@ export function CompleteDeliveryButton({ deliveryId, allowedIdentities }: { deli
 
                             {isScanning ? (
                                 <div className="space-y-2 relative border rounded-lg overflow-hidden bg-black flex justify-center w-full aspect-video">
-                                    <div id="delivery-barcode-reader" className="h-full w-full" />
+                                    <div id="delivery-barcode-reader" className="h-full w-full object-cover" />
                                     <Button type="button" size="icon" variant="destructive" className="absolute top-2 right-2 rounded-full h-8 w-8 z-20" onClick={() => stopScanning()}>
                                         <X className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="icon"
+                                        className="absolute bottom-2 right-2 rounded-full h-8 w-8 shadow-lg z-20 bg-background/80 hover:bg-background"
+                                        onClick={toggleFlash}
+                                    >
+                                        <Flashlight className={`h-4 w-4 ${isFlashOn ? 'text-yellow-500' : 'text-foreground'}`} />
                                     </Button>
                                 </div>
                             ) : (

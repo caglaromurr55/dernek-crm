@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, MapPin, Package, History, HeartHandshake, Settings, Database, ShoppingCart, Barcode, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, Users, MapPin, Package, History, HeartHandshake, Settings, Database, ShoppingCart, Barcode, ChevronLeft, ChevronRight, ShieldAlert } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +18,7 @@ const mainNavigation = [
 const secondaryNavigation = [
   { name: "Sistem Logları", href: "/loglar", icon: History },
   { name: "Ekip Yönetimi", href: "/gonulluler", icon: HeartHandshake },
+  { name: "Sistem Yönetimi", href: "/sistem", icon: ShieldAlert },
 ];
 
 export function SidebarContent({ role, isCollapsed }: { role?: string, isCollapsed?: boolean }) {

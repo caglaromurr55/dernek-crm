@@ -11,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Flashlight } from "lucide-react";
 
 interface StandaloneScannerModalProps {
     open: boolean;
@@ -33,6 +34,23 @@ export function StandaloneScannerModal({
     const [statusText, setStatusText] = useState("Kamera başlatılıyor...");
     const [isScanning, setIsScanning] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [isFlashOn, setIsFlashOn] = useState(false);
+    const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const toggleFlash = useCallback(async () => {
+        const scanner = html5QrCodeRef.current;
+        if (scanner && scanner.getState() === 2) { // 2 = SCANNING state
+            try {
+                await scanner.applyVideoConstraints({
+                    advanced: [{ torch: !isFlashOn } as any]
+                });
+                setIsFlashOn(!isFlashOn);
+            } catch (err) {
+                console.error("Flaş değiştirme hatası:", err);
+                setStatusText("Flaş desteklenmiyor veya açılamadı.");
+            }
+        }
+    }, [isFlashOn]);
 
     const stopCamera = useCallback(async () => {
         const scanner = html5QrCodeRef.current;
@@ -56,8 +74,13 @@ export function StandaloneScannerModal({
         setErrorMsg(null);
         setIsScanning(true);
         setStatusText("Kamera hazırlanıyor...");
+        setIsFlashOn(false);
 
-        setTimeout(async () => {
+        if (initTimeoutRef.current) {
+            clearTimeout(initTimeoutRef.current);
+        }
+
+        initTimeoutRef.current = setTimeout(async () => {
             const element = document.getElementById("generic-barcode-reader");
             if (!element) return;
 
@@ -66,16 +89,18 @@ export function StandaloneScannerModal({
                     await stopCamera();
                 }
 
-                html5QrCodeRef.current = new Html5Qrcode("generic-barcode-reader", { verbose: false });
+                const scanner = new Html5Qrcode("generic-barcode-reader", { verbose: false });
+                html5QrCodeRef.current = scanner;
 
                 const config = {
-                    fps: 15,
+                    fps: 20, // Increased for faster scanning
                     qrbox: { width: 280, height: 160 },
-                    aspectRatio: 1.0
+                    aspectRatio: 1.0,
+                    disableFlip: false, // Ensures reading mirrors is supported if needed
                 };
 
                 setStatusText("Barkodu kameraya tutun.");
-                await html5QrCodeRef.current.start(
+                await scanner.start(
                     { facingMode: "environment" },
                     config,
                     (decodedText) => {
@@ -92,15 +117,15 @@ export function StandaloneScannerModal({
                             onScan(decodedText.trim());
                         }
                     },
-                    () => { }
+                    () => { } // Ignore continuous read errors
                 );
             } catch (err: any) {
                 console.error("Kamera başlatılamadı:", err);
                 setStatusText("Hata: Kamera başlatılamadı.");
-                setErrorMsg("Kameraya erişilemedi. Lütfen izinleri ve HTTPS bağlantısını kontrol edin.");
+                setErrorMsg("Kameraya erişilemedi. Lütfen izinleri ve cihazınızı kontrol edin.");
                 setIsScanning(false);
             }
-        }, 600);
+        }, 300); // reduced timeout slightly, but using clear timeout to prevent double runs
     }, [stopCamera, require11Digits, onScan]);
 
     useEffect(() => {
@@ -126,13 +151,22 @@ export function StandaloneScannerModal({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex flex-col items-center mt-2 space-y-4">
+                <div className="flex flex-col items-center mt-2 space-y-4 w-full">
                     {isScanning && (
-                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border-2 border-border shadow-inner">
-                            <div id="generic-barcode-reader" className="w-full h-full" />
+                        <div className="relative w-full aspect-video md:aspect-square md:max-h-[300px] rounded-lg overflow-hidden bg-black border-2 border-border shadow-inner flex items-center justify-center">
+                            <div id="generic-barcode-reader" className="w-full h-full object-cover" />
                             <div className="absolute inset-x-8 inset-y-12 border-2 border-primary rounded bg-primary/10 z-10 pointer-events-none flex items-center justify-center">
                                 <div className="w-full h-[2px] bg-red-500/80 absolute top-1/2"></div>
                             </div>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                className="absolute bottom-4 right-4 rounded-full shadow-lg z-20 bg-background/80 hover:bg-background"
+                                onClick={toggleFlash}
+                            >
+                                <Flashlight className={`h-5 w-5 ${isFlashOn ? 'text-yellow-500' : 'text-foreground'}`} />
+                            </Button>
                         </div>
                     )}
 

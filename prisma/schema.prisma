@@ -247,3 +247,10 @@ model Volunteer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   // Stores JSON or text configurations
+  updatedAt DateTime @updatedAt
+}

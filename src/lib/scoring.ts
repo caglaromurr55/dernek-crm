@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { calculateHouseholdTags } from "@/lib/tagging";
+import { getScoringSettingsAction } from "@/app/actions/settings";
 
 export async function recalculateHouseholdScore(householdId: string) {
     const household = await (prisma as any).household.findUnique({
@@ -45,6 +46,10 @@ export async function recalculateHouseholdScore(householdId: string) {
 
     if (!household) return 0;
 
+    // Get dynamic settings
+    const settingsResponse = await getScoringSettingsAction();
+    const settings = settingsResponse.data;
+
     // --- V4 Dinamik Veri Sayımı ---
     // Manuel girilen counts yerine gerçek person listesinden sayıyoruz
     const actualStudentCount = household.persons.filter((p: any) => p.isStudent).length;
@@ -78,7 +83,7 @@ export async function recalculateHouseholdScore(householdId: string) {
         hasInternet: household.hasInternet,
         hasWashingMachine: household.hasWashingMachine,
         hasRefrigerator: household.hasRefrigerator
-    });
+    }, settings);
 
     // Bireylere (Persons) göre ek puanlar
     for (const person of household.persons) {
@@ -111,6 +116,17 @@ export async function recalculateHouseholdScore(householdId: string) {
         newStatus = "APPROVED_ONCE";
     } else if (score >= 60) {
         newStatus = "APPROVED";
+    }
+
+    // --- DİNAMİK OTOMATİK REDLER (Override Eder) ---
+    if (settings!.autoRejectCarOwner && household.carOwnership) {
+        newStatus = "REJECTED";
+    }
+    if (settings!.autoRejectEstateOwner && household.estateOwnership) {
+        newStatus = "REJECTED";
+    }
+    if (settings!.autoRejectIfWorkerExists && household.workerCount && household.workerCount > 0) {
+        newStatus = "REJECTED";
     }
 
     // --- OTOMATİK ETİKET ATAMA (Smart Labels) ---
@@ -149,7 +165,6 @@ export function calculateBaseHouseholdScore(data: {
     estateOwnership?: boolean | null;
     debtAmount?: number | null;
     heatingType?: string | null;
-    // Yeni Giderler
     billExpense?: number | null;
     foodExpense?: number | null;
     heatingExpense?: number | null;
@@ -158,95 +173,97 @@ export function calculateBaseHouseholdScore(data: {
     clothingExpense?: number | null;
     transportationExpense?: number | null;
     babyExpense?: number | null;
-    // Yeni Şartlar
     roofCondition?: string | null;
     waterDamage?: boolean | null;
     furnitureCondition?: string | null;
     hasInternet?: boolean | null;
     hasWashingMachine?: boolean | null;
     hasRefrigerator?: boolean | null;
-}) {
-    let score = 50; // Taban puan
+}, settings: any) {
+    let score = settings.baseScore || 50; // Taban puan
 
     // Kira Durumu Etkisi
     if (data.rentStatus === "kiraci") {
-        score += 25;
+        score += settings.rentTenantBonus || 25;
     } else if (data.rentStatus === "akraba-yani") {
-        score += 10;
+        score += settings.rentRelativeBonus || 10;
     } else if (data.rentStatus === "mulk-sahibi") {
-        score -= 30;
+        score -= settings.rentOwnerDeduction || 30;
     }
 
     // Kira yükü (Her 500 TL için +1 puan, maks +40)
     if (data.rentAmount && data.rentAmount > 0) {
-        const rentScore = Math.min(Math.floor(data.rentAmount / 500), 40);
+        const rentScore = Math.min(Math.floor(data.rentAmount / 500), settings.rentAmountBonusMax || 40);
         score += rentScore;
     }
 
     // --- NEGATİF PUANLAR (Zenginlik Kısımları) ---
     if (data.monthlyIncome && data.monthlyIncome > 0) {
-        const incomeDeduction = Math.floor(data.monthlyIncome / 1000) * 5;
+        const dPer1000 = settings.incomeDeductionPer1000 || 5;
+        const incomeDeduction = Math.floor(data.monthlyIncome / 1000) * dPer1000;
         score -= incomeDeduction;
     } else {
-        score += 40;
+        score += settings.noIncomeBonus || 40;
     }
 
-    if (data.carOwnership) {
-        score -= 40;
+    if (data.carOwnership && (!settings.autoRejectCarOwner)) {
+        score -= settings.carOwnershipDeduction || 40;
     }
-    if (data.estateOwnership) {
-        score -= 100;
+    if (data.estateOwnership && (!settings.autoRejectEstateOwner)) {
+        score -= settings.estateOwnershipDeduction || 100;
     }
 
-    if (data.workerCount && data.workerCount > 0) {
-        score -= (data.workerCount * 20);
+    if (data.workerCount && data.workerCount > 0 && (!settings.autoRejectIfWorkerExists)) {
+        const workerDeduction = settings.workerDeductionPerPerson || 20;
+        score -= (data.workerCount * workerDeduction);
     }
 
     // --- POZİTİF PUANLAR (Ek Yükler) ---
     // Eğitim
     if (data.studentCount && data.studentCount > 0) {
-        score += (data.studentCount * 10);
+        const studentBonus = settings.studentBonusPerPerson || 10;
+        score += (data.studentCount * studentBonus);
     }
 
-    // Borç Durumu (Her 5000 TL borç için +5 Puan, maks 30)
+    // Borç Durumu (Her 5000 TL borç için +5 Puan)
     if (data.debtAmount && data.debtAmount > 0) {
-        const debtScore = Math.min(Math.floor(data.debtAmount / 5000) * 5, 30);
+        const debtMax = settings.debtBonusMax || 30;
+        const debtScore = Math.min(Math.floor(data.debtAmount / 5000) * 5, debtMax);
         score += debtScore;
     }
 
     // Isınma Türü
     if (data.heatingType === "soba") {
-        score += 15;
+        score += settings.heatingSobaBonus || 15;
     }
 
     // --- YENİ EKLENEN FİZİKSEL ŞARTLAR YÜKLERİ ---
     if (data.waterDamage) {
-        score += 20; // Rutubetli ev ekstra sağlık riskidir
+        score += settings.waterDamageBonus || 20;
     }
     if (data.roofCondition === "akitiyor") {
-        score += 20;
+        score += settings.roofLeakingBonus || 20;
     } else if (data.roofCondition === "eski") {
-        score += 10;
+        score += settings.roofOldBonus || 10;
     }
 
     if (data.furnitureCondition === "yetersiz") {
-        score += 15; // Çok yetersiz eşya ek yardım gerektirir
+        score += settings.furnitureInadequateBonus || 15;
     } else if (data.furnitureCondition === "eski") {
-        score += 5;
+        score += settings.furnitureOldBonus || 5;
     }
 
     if (data.hasWashingMachine === false) {
-        score += 15; // Temel beyaz eşya eksiği
+        score += settings.noWashingMachineBonus || 15;
     }
     if (data.hasRefrigerator === false) {
-        score += 20; // Gıda saklama sorunu çok kritiktir
+        score += settings.noRefrigeratorBonus || 20;
     }
     if (data.hasInternet === false && data.studentCount && data.studentCount > 0) {
-        score += 15; // Öğrenci var ama internet yoksa dezavantaj çok artar
+        score += settings.noInternetWithStudentBonus || 15;
     }
 
-    // --- GİDER YÜKÜ (Toplam Aylık Giderlerin Gelire Oranı / Etkisi) ---
-    // Sadece kira değil, tüm giderlerin faturasını hafifçe skora yansıt
+    // --- GİDER YÜKÜ ---
     const totalExpenses =
         (data.rentAmount || 0) +
         (data.billExpense || 0) +
@@ -259,8 +276,8 @@ export function calculateBaseHouseholdScore(data: {
         (data.babyExpense || 0);
 
     if (totalExpenses > 0) {
-        // Her 1000 TL total gider için skoru hafifçe (+2) artır. Üst limit 30
-        const expenseScore = Math.min(Math.floor(totalExpenses / 1000) * 2, 30);
+        const expenseMax = settings.expensesBonusMax || 30;
+        const expenseScore = Math.min(Math.floor(totalExpenses / 1000) * 2, expenseMax);
         score += expenseScore;
     }
 

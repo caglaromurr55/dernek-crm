@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Search, MapPin, CheckCircle, Package, User, ShoppingCart, Trash2, Zap, Clock, AlertTriangle, Barcode } from "lucide-react";
 import { StandaloneScannerModal } from "@/components/StandaloneScannerModal";
+import { MrzScanner } from "@/components/MrzScanner";
 
 export default function BoutiquePOSPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -24,6 +25,7 @@ export default function BoutiquePOSPage() {
 
     const [submitting, setSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [isMrzScannerOpen, setIsMrzScannerOpen] = useState(false);
 
     // Kasa input referansı
     const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -194,17 +196,28 @@ export default function BoutiquePOSPage() {
                         <CardContent className="p-5">
                             {!selectedHousehold ? (
                                 <div className="space-y-4">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="TC Kimlik No veya İsim ile arayın..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="pl-9 bg-background text-lg h-12"
-                                        />
-                                        {isSearching && (
-                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground animate-pulse">Aranıyor...</span>
-                                        )}
+                                    <div className="relative flex gap-2 w-full">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="TC Kimlik No veya İsim ile arayın..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="pl-9 bg-background text-lg h-12"
+                                            />
+                                            {isSearching && (
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground animate-pulse">Aranıyor...</span>
+                                            )}
+                                        </div>
+                                        <div className="shrink-0 flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                className="h-12 w-12 p-0 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                                                onClick={() => setIsMrzScannerOpen(true)}
+                                            >
+                                                <Barcode className="w-5 h-5" />
+                                            </Button>
+                                        </div>
                                     </div>
                                     <div className="space-y-2 mt-4 max-h-[220px] overflow-y-auto pr-2">
                                         {searchResults.map(h => (
@@ -417,6 +430,34 @@ export default function BoutiquePOSPage() {
                 title="Ürün Barkodu Oku"
                 description="Kamerayı ürün barkoduna sabitleyin. Algılanan barkod otomatik olarak sepete aktarılır."
             />
+
+            {isMrzScannerOpen && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-in-fade">
+                    <div className="bg-background w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl">
+                        <div className="p-4 border-b border-border flex justify-between items-center">
+                            <h3 className="font-bold">Kimlik / Barkod Tarayıcı</h3>
+                            <Button variant="ghost" size="sm" onClick={() => setIsMrzScannerOpen(false)}>Kapat</Button>
+                        </div>
+                        <div className="p-4">
+                            <MrzScanner
+                                onClose={() => setIsMrzScannerOpen(false)}
+                                onScan={(data: any) => {
+                                    if (data && data.identityNo) {
+                                        setSearchQuery(data.identityNo);
+                                        toast.success("Kimlik başarıyla okundu!");
+                                    } else {
+                                        toast.error("Kimlikte okunan geçerli bir TC no bulunamadı.");
+                                        if (typeof data === "string") {
+                                            setSearchQuery(data);
+                                        }
+                                    }
+                                    setIsMrzScannerOpen(false);
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

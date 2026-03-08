@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { XCircle, CheckCircle2, Scan, RefreshCw, Barcode } from "lucide-react";
+import { XCircle, CheckCircle2, Scan, RefreshCw, Barcode, Flashlight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MrzScannerProps {
@@ -20,6 +20,22 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     const [statusText, setStatusText] = useState("Kamera başlatılıyor...");
     const [isScanning, setIsScanning] = useState(true);
     const [success, setSuccess] = useState(false);
+    const [isFlashOn, setIsFlashOn] = useState(false);
+    const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const toggleFlash = useCallback(async () => {
+        const scanner = html5QrCodeRef.current;
+        if (scanner && scanner.getState() === 2) { // SCANNING
+            try {
+                await scanner.applyVideoConstraints({
+                    advanced: [{ torch: !isFlashOn } as any]
+                });
+                setIsFlashOn(!isFlashOn);
+            } catch (err) {
+                console.error("Flaş değiştirme hatası:", err);
+            }
+        }
+    }, [isFlashOn]);
 
     const stopCamera = useCallback(async () => {
         if (html5QrCodeRef.current) {
@@ -30,6 +46,9 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
             } catch (err) {
                 console.error("Kamera durdurma hatası:", err);
             }
+            try {
+                html5QrCodeRef.current.clear();
+            } catch (e) { }
             html5QrCodeRef.current = null;
         }
         setIsScanning(false);
@@ -38,9 +57,13 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
     const startCamera = useCallback(async () => {
         setIsScanning(true);
         setStatusText("Kamera hazırlanıyor...");
+        setIsFlashOn(false);
 
-        // Render için küçük bir gecikme
-        setTimeout(async () => {
+        if (initTimeoutRef.current) {
+            clearTimeout(initTimeoutRef.current);
+        }
+
+        initTimeoutRef.current = setTimeout(async () => {
             const element = document.getElementById("mrz-barcode-reader");
             if (!element) {
                 console.error("mrz-barcode-reader elementi bulunamadı");
@@ -52,21 +75,22 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                     await stopCamera();
                 }
 
-                html5QrCodeRef.current = new Html5Qrcode("mrz-barcode-reader", { verbose: false });
+                const scanner = new Html5Qrcode("mrz-barcode-reader", { verbose: false });
+                html5QrCodeRef.current = scanner;
 
                 const config = {
                     fps: 20,
                     qrbox: { width: 300, height: 150 },
-                    aspectRatio: 1.0
+                    aspectRatio: 1.0,
+                    disableFlip: false
                 };
 
                 setStatusText("Kimliğin arkasındaki barkodu gösterin.");
 
-                await html5QrCodeRef.current.start(
+                await scanner.start(
                     { facingMode: "environment" },
                     config,
                     (decodedText) => {
-                        // Sadece sayısal karakterleri al ve 11 hane mi kontrol et
                         const cleanTc = decodedText.trim().replace(/\D/g, '');
                         if (cleanTc.length === 11) {
                             if (navigator.vibrate) navigator.vibrate(200);
@@ -101,17 +125,28 @@ export function MrzScanner({ onScan, onClose }: MrzScannerProps) {
                 <div id="mrz-barcode-reader" className="w-full h-full" />
 
                 {!success && isScanning && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                        {/* Target area for PDF417 - Wide and short like qrbox */}
-                        <div className="w-[300px] h-[150px] border-2 border-emerald-400/60 rounded-xl relative bg-emerald-500/5 backdrop-blur-[1px]">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
+                    <>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+                            {/* Target area for PDF417 - Wide and short like qrbox */}
+                            <div className="w-[300px] h-[150px] border-2 border-emerald-400/60 rounded-xl relative bg-emerald-500/5 backdrop-blur-[1px]">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-scan-line"></div>
+                            </div>
+                            <div className="mt-8 bg-black/60 px-4 py-2 rounded-full border border-emerald-500/30 backdrop-blur-md">
+                                <p className="text-[10px] text-emerald-400 font-black tracking-widest uppercase">
+                                    BARKODU BURAYA HİZALAYIN
+                                </p>
+                            </div>
                         </div>
-                        <div className="mt-8 bg-black/60 px-4 py-2 rounded-full border border-emerald-500/30 backdrop-blur-md">
-                            <p className="text-[10px] text-emerald-400 font-black tracking-widest uppercase">
-                                BARKODU BURAYA HİZALAYIN
-                            </p>
-                        </div>
-                    </div>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="absolute bottom-4 right-4 rounded-full shadow-lg z-20 bg-background/80 hover:bg-background pointer-events-auto"
+                            onClick={toggleFlash}
+                        >
+                            <Flashlight className={`h-5 w-5 ${isFlashOn ? 'text-yellow-500' : 'text-foreground'}`} />
+                        </Button>
+                    </>
                 )}
 
                 {success && (
