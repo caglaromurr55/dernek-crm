@@ -1,4 +1,4 @@
-import { Household, Person } from "@prisma/client";
+import { Household, Person } from "@/generated/client";
 
 export function calculateHouseholdTags(
     household: Partial<Household>,
