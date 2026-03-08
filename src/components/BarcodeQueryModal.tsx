@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { queryPersonByBarcode } from "@/app/actions/query";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { ManualDeliveryModal } from "@/components/ManualDeliveryModal";
 import {
     Dialog,
     DialogContent,
@@ -30,16 +31,22 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
     const [result, setResult] = useState<any>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+    const [isManualDeliveryOpen, setIsManualDeliveryOpen] = useState(false);
+
     const stopCamera = useCallback(async () => {
-        if (html5QrCodeRef.current) {
+        const scanner = html5QrCodeRef.current;
+        if (scanner) {
+            html5QrCodeRef.current = null;
             try {
-                if (html5QrCodeRef.current.isScanning) {
-                    await html5QrCodeRef.current.stop();
+                if (scanner.isScanning) {
+                    await scanner.stop();
                 }
             } catch (err) {
                 console.error("Kamera durdurma hatası:", err);
             }
-            html5QrCodeRef.current = null;
+            try {
+                scanner.clear();
+            } catch (e) { }
         }
         setIsScanning(false);
     }, []);
@@ -231,12 +238,15 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
                             </div>
 
                             <div className="flex gap-2 w-full pt-2">
-                                <Button className="flex-1 bg-zinc-800 hover:bg-zinc-700" onClick={startCamera}>
+                                <Button className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-xs" onClick={startCamera}>
                                     Yeni Sorgu
                                 </Button>
+                                <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-xs text-white" onClick={() => setIsManualDeliveryOpen(true)}>
+                                    Yardım Kaydet
+                                </Button>
                                 <Link href={`/haneler/${result.householdId}`} className="flex-1">
-                                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
-                                        Haneye Git
+                                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-xs text-white">
+                                        Detaylar
                                     </Button>
                                 </Link>
                             </div>
@@ -248,6 +258,15 @@ export function BarcodeQueryModal({ open, onClose }: BarcodeQueryModalProps) {
                     )}
                 </div>
             </DialogContent>
+
+            {result && (
+                <ManualDeliveryModal
+                    open={isManualDeliveryOpen}
+                    onClose={() => setIsManualDeliveryOpen(false)}
+                    householdId={result.householdId}
+                    householdName={result.name}
+                />
+            )}
         </Dialog>
     );
 }

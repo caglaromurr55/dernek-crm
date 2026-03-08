@@ -35,7 +35,7 @@ export function DistributionListPDFButton({ list }: DistributionListPDFButtonPro
 
             // --- QR Code ---
             if (list.token) {
-                const qrUrl = `${window.location.origin}/saha/liste/${list.token}`;
+                const qrUrl = `${window.location.host === 'localhost:3000' ? 'http://' : 'https://'}${window.location.host}/saha/liste/${list.token}`;
                 try {
                     const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 100 });
                     doc.addImage(qrDataUrl, "PNG", 240, 10, 40, 40);
@@ -123,7 +123,7 @@ export function DistributionListPDFButton({ list }: DistributionListPDFButtonPro
     return (
         <Button variant="outline" className="gap-2 shrink-0 border-blue-200 hover:bg-blue-50 text-blue-700" onClick={generatePDF} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-            Karekodlu Liste Çıktısı Al
+            Liste Çıktısı Al
         </Button>
     );
 }

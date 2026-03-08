@@ -51,7 +51,7 @@ export function PredictiveChart() {
     return (
         <Card className="glass-card border-0 shadow-2xl overflow-hidden relative">
             {/* Background Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
             <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">

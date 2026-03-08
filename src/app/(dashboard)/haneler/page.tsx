@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Filter, UserPlus, MapPin, Phone,
     TrendingUp, CheckCircle2, Clock, XCircle, ChevronRight,
-    Layers, Download, ScanBarcode, ArrowUp, ArrowDown, ArrowUpDown
+    Layers, Download, ScanBarcode, ArrowUp, ArrowDown, ArrowUpDown, ShoppingBag
 } from "lucide-react";
 import {
     Table,
@@ -89,32 +89,8 @@ export default async function HanelerPage({ searchParams }: Props) {
         return order === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />;
     };
 
-    // Export için filtreleme kriterlerini oluştur
-    const exportWhereClause: any = {};
-    if (status && status !== 'ALL') {
-        exportWhereClause.status = status;
-    }
-    if (query) {
-        exportWhereClause.persons = {
-            some: {
-                OR: [
-                    { firstName: { contains: query, mode: "insensitive" } },
-                    { lastName: { contains: query, mode: "insensitive" } },
-                    { identityNo: { contains: query } },
-                ]
-            }
-        };
-    }
-
-    const householdsForExport = await prisma.household.findMany({
-        where: exportWhereClause,
-        include: {
-            persons: { where: { isApplicant: true } as any, take: 1 },
-            _count: { select: { persons: true } }
-        },
-        orderBy: { createdAt: "desc" },
-        take: 2000 // Güvenlik sınırı
-    });
+    // Export için filtreleme kriterlerini oluştur - ARTIK ON-DEMAND ÇALIŞIYOR
+    // ESKİ householdsForExport Fetch SİLİNDİ
 
     const getStatusBadge = (status: string, score: number) => {
         switch (status) {
@@ -136,12 +112,17 @@ export default async function HanelerPage({ searchParams }: Props) {
                     <h1 className="text-4xl font-extrabold tracking-tight premium-gradient-text">Hane Portföyü</h1>
                     <p className="text-muted-foreground font-medium">Sistemdeki tüm ihtiyaç sahibi haneleri ve başvuru süreçlerini yönetin.</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-nowrap items-center gap-2 md:gap-3 shrink-0">
                     <BarcodeQueryButton />
-                    <ExportButtons data={householdsForExport} />
-                    <Link href="/haneler/yeni">
-                        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 shadow-lg shadow-emerald-100 border-0 h-11">
-                            <UserPlus className="mr-2 h-5 w-5" /> Yeni Hane Kaydı
+                    <ExportButtons status={status} query={query} />
+                    <Link href="/manuel-teslimat" className="shrink-0">
+                        <Button variant="outline" className="h-11 border-emerald-600/30 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold px-3 md:px-5 shadow-sm rounded-2xl transition-all whitespace-nowrap">
+                            <ShoppingBag className="mr-2 h-5 w-5" /> Manuel Teslimat
+                        </Button>
+                    </Link>
+                    <Link href="/haneler/yeni" className="shrink-0">
+                        <Button className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 md:px-5 shadow-lg shadow-emerald-100 border-0 rounded-2xl transition-all hover:scale-105 active:scale-95 whitespace-nowrap">
+                            <UserPlus className="mr-2 h-5 w-5" /> Yeni Hane
                         </Button>
                     </Link>
                 </div>

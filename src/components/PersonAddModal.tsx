@@ -14,7 +14,14 @@ import {
     DialogFooter
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserPlus, Camera, RefreshCw, HeartPulse, GraduationCap, X } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
+import { UserPlus, Camera, RefreshCw, HeartPulse, GraduationCap, X, Accessibility } from "lucide-react";
 import { addPersonAction } from "@/app/actions/household";
 import { MrzScanner } from "./MrzScanner";
 import { toast } from "sonner";
@@ -33,6 +40,11 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
         lastName: "",
         identityNo: "",
         birthDate: "",
+        gender: "ERK",
+        educationalLevel: "ilkokul",
+        employmentStatus: "issiz",
+        maritalStatus: "bekar",
+        monthlyIncome: "0",
         isStudent: false,
         isDisabled: false,
         hasChronicIllness: false
@@ -64,6 +76,11 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
                 lastName: "",
                 identityNo: "",
                 birthDate: "",
+                gender: "ERK",
+                educationalLevel: "ilkokul",
+                employmentStatus: "issiz",
+                maritalStatus: "bekar",
+                monthlyIncome: "0",
                 isStudent: false,
                 isDisabled: false,
                 hasChronicIllness: false
@@ -123,20 +140,83 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
                                 <Label className="text-[10px] font-black text-muted-foreground uppercase">DOĞUM TARİHİ</Label>
                                 <Input type="date" value={formData.birthDate} onChange={e => setFormData({ ...formData, birthDate: e.target.value })} className="h-10 border-border bg-secondary/30 focus:border-emerald-500/50" />
                             </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">CİNSİYET</Label>
+                                <Select value={formData.gender} onValueChange={(val) => setFormData({ ...formData, gender: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="KAD">Kadın</SelectItem>
+                                        <SelectItem value="ERK">Erkek</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">EĞİTİM</Label>
+                                <Select value={formData.educationalLevel} onValueChange={(val) => setFormData({ ...formData, educationalLevel: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="okuryazar_degil">Okuryazar Değil</SelectItem>
+                                        <SelectItem value="ilkokul">İlkokul</SelectItem>
+                                        <SelectItem value="ortaokul">Ortaokul</SelectItem>
+                                        <SelectItem value="lise">Lise</SelectItem>
+                                        <SelectItem value="universite">Üniversite</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">MEDENİ DURUM</Label>
+                                <Select value={formData.maritalStatus} onValueChange={(val) => setFormData({ ...formData, maritalStatus: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="bekar">Bekar</SelectItem>
+                                        <SelectItem value="evli">Evli</SelectItem>
+                                        <SelectItem value="bosanmis">Boşanmış</SelectItem>
+                                        <SelectItem value="dul">Dul</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">AYLIK GELİR (₺)</Label>
+                                <Input type="number" value={formData.monthlyIncome} onChange={e => setFormData({ ...formData, monthlyIncome: e.target.value })} className="h-10 border-border bg-secondary/30 focus:border-emerald-500/50" />
+                            </div>
+                            <div className="space-y-1.5 col-span-2">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">ÇALIŞMA DURUMU</Label>
+                                <Select value={formData.employmentStatus} onValueChange={(val) => setFormData({ ...formData, employmentStatus: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="calisiyor">Çalışıyor</SelectItem>
+                                        <SelectItem value="issiz">İşsiz</SelectItem>
+                                        <SelectItem value="emekli">Emekli</SelectItem>
+                                        <SelectItem value="ev_hanimi">Ev Hanımı</SelectItem>
+                                        <SelectItem value="ogrenci">Öğrenci</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
-                        <div className="flex gap-4">
-                            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary/50 border border-border flex-1 hover:bg-emerald-500/10 transition-colors cursor-pointer group">
-                                <Checkbox id="isStudent" checked={formData.isStudent} onCheckedChange={(val) => setFormData({ ...formData, isStudent: !!val })} className="w-5 h-5 border-border" />
-                                <Label htmlFor="isStudent" className="text-xs font-bold text-foreground/80 flex items-center gap-1.5 cursor-pointer">
-                                    <GraduationCap className="w-4 h-4 text-muted-foreground group-hover:text-emerald-500" /> Öğrenci
-                                </Label>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div
+                                onClick={() => setFormData({ ...formData, isStudent: !formData.isStudent })}
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-[0.98] ${formData.isStudent ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm shadow-blue-100/50' : 'bg-secondary/20 border-border/30 text-muted-foreground'}`}
+                            >
+                                <GraduationCap className={`w-5 h-5 mb-1.5 transition-colors ${formData.isStudent ? 'text-blue-600' : 'group-hover:text-blue-400'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-tighter">Öğrenci</span>
                             </div>
-                            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary/50 border border-border flex-1 hover:bg-red-500/10 transition-colors cursor-pointer group">
-                                <Checkbox id="isDisabled" checked={formData.isDisabled} onCheckedChange={(val) => setFormData({ ...formData, isDisabled: !!val })} className="w-5 h-5 border-border" />
-                                <Label htmlFor="isDisabled" className="text-xs font-bold text-foreground/80 flex items-center gap-1.5 cursor-pointer">
-                                    <HeartPulse className="w-4 h-4 text-muted-foreground group-hover:text-red-500" /> Dezavantajlı
-                                </Label>
+
+                            <div
+                                onClick={() => setFormData({ ...formData, isDisabled: !formData.isDisabled })}
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-[0.98] ${formData.isDisabled ? 'bg-red-50 border-red-200 text-red-700 shadow-sm shadow-red-100/50' : 'bg-secondary/20 border-border/30 text-muted-foreground'}`}
+                            >
+                                <Accessibility className={`w-5 h-5 mb-1.5 transition-colors ${formData.isDisabled ? 'text-red-600' : 'group-hover:text-red-400'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-tighter">Engelli</span>
+                            </div>
+
+                            <div
+                                onClick={() => setFormData({ ...formData, hasChronicIllness: !formData.hasChronicIllness })}
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-[0.98] ${formData.hasChronicIllness ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm shadow-amber-100/50' : 'bg-secondary/20 border-border/30 text-muted-foreground'}`}
+                            >
+                                <HeartPulse className={`w-5 h-5 mb-1.5 transition-colors ${formData.hasChronicIllness ? 'text-amber-600' : 'group-hover:text-amber-400'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-tighter">Kronik</span>
                             </div>
                         </div>
 

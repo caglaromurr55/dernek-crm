@@ -27,15 +27,14 @@ export default async function DagitimPage() {
         orderBy: { name: "asc" }
     });
 
-    const households = await (prisma as any).household.findMany({
-        select: { address: true }
+    // Benzersiz mahalleleri veritabanından çek (Dinamik Lokasyonlar)
+    const neighborhoodDocs = await (prisma as any).neighborhood.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" }
     });
-
-    const neighborhoods = Array.from(new Set(
-        households
-            .map((h: any) => h.address.split(" - ")[0])
-            .filter((n: string) => n && n.length > 0)
-    )).sort() as string[];
+    const neighborhoods = neighborhoodDocs
+        .map((n: { name: string }) => n.name)
+        .filter((n: string) => n && n.length > 0); // Filter out empty or null names
 
     return (
         <div className="space-y-8 animate-in-fade">
@@ -123,7 +122,7 @@ export default async function DagitimPage() {
             </div>
 
             <div className="p-8 glass-card rounded-3xl relative overflow-hidden shadow-xl border-border/50">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl -mr-32 -mt-32"></div>
                 <div className="relative flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="space-y-2">
                         <h4 className="text-xl font-black text-foreground">Operasyonel Verimlilik</h4>

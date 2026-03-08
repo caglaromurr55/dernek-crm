@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+import React from "react";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -13,15 +13,20 @@ import {
     SelectValue
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Save, Home, Wallet, Info, Receipt, Flame, Car } from "lucide-react";
+import { ArrowLeft, Save, Home, Wallet, Info, FileText, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { updateHouseholdAction } from "@/app/actions/household";
+import { EditHouseholdSidebar } from "@/components/EditHouseholdSidebar";
+
+export const dynamic = "force-dynamic";
 
 export default async function HaneDuzenlePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const household: any = await prisma.household.findUnique({
-        where: { id }
-    });
+    const [householdData, neighborhoods] = await Promise.all([
+        prisma.household.findUnique({ where: { id } }),
+        (prisma as any).neighborhood.findMany({ orderBy: { name: "asc" } })
+    ]);
+    const household: any = householdData;
 
     if (!household) notFound();
 
@@ -29,117 +34,254 @@ export default async function HaneDuzenlePage({ params }: { params: Promise<{ id
     const mahalle = addressParts.length > 1 ? addressParts[0] : "";
     const clarifyAddress = addressParts.length > 1 ? addressParts.slice(1).join(" - ") : household.address;
 
+    const navItems = [
+        { id: "iletisim", label: "İletişim & Konum", icon: Home },
+        { id: "mali", label: "Mali Durum", icon: Wallet },
+        { id: "yasam_sartlari", label: "Ev & Yaşam Şartları", icon: Home },
+        { id: "degerlendirme", label: "Değerlendirme", icon: FileText },
+    ];
+
     return (
-        <div className="space-y-8 max-w-5xl mx-auto pb-20 animate-in-fade">
+        <div className="max-w-7xl mx-auto pb-24 animate-in-fade space-y-8">
             <div className="flex items-center gap-6">
                 <Link href={`/haneler/${id}`}>
-                    <Button variant="ghost" size="icon" className="rounded-full shadow-sm border bg-white/50 backdrop-blur-sm transition-transform hover:scale-110">
+                    <Button variant="ghost" size="icon" className="rounded-full shadow-sm border border-border bg-secondary/50 backdrop-blur-sm transition-transform hover:scale-110">
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                 </Link>
                 <div>
                     <h1 className="text-4xl font-extrabold tracking-tight premium-gradient-text">Verileri Güncelle</h1>
-                    <p className="text-zinc-500 font-medium mt-1">Hane tahkikat verilerini revize edin. Değişiklikler skoru anında etkiler.</p>
+                    <p className="text-muted-foreground font-medium mt-1">Hane tahkikat verilerini revize edin. Değişiklikler panoda anında güncellenir.</p>
                 </div>
             </div>
 
-            <form action={async (formData: FormData) => { "use server"; await updateHouseholdAction(id, formData); }} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-12">
-                    <Card className="glass-card border-0 shadow-xl overflow-hidden mb-8">
-                        <div className="h-2 bg-emerald-500"></div>
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-xl font-bold flex items-center gap-2"><Home className="w-5 h-5 text-emerald-500" /> Adres ve İletişim</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-zinc-500">MAHALLE</Label>
+            <form action={async (formData: FormData) => { "use server"; await updateHouseholdAction(id, formData); }} className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative items-start">
+
+                <EditHouseholdSidebar navItems={navItems} />
+
+                {/* FORM CONTENT */}
+                <div className="lg:col-span-9 space-y-12">
+
+                    {/* İLETİŞİM & ADRES */}
+                    <div id="iletisim" className="scroll-mt-24">
+                        <div className="flex items-center gap-3 mb-4 px-2">
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">1</div>
+                            <h2 className="text-2xl font-black tracking-tight text-foreground">İletişim & Konum</h2>
+                        </div>
+                        <Card className="glass-card border-0 shadow-xl bg-card overflow-hidden">
+                            <CardContent className="p-0 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+                                <div className="p-6 md:p-8 space-y-3">
+                                    <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center mb-4"><Home className="w-5 h-5" /></div>
+                                    <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">MAHALLE</Label>
                                     <Select name="mahalle" defaultValue={mahalle || "Merkez Mahallesi"}>
-                                        <SelectTrigger className="bg-zinc-50 h-11 border-zinc-100"><SelectValue /></SelectTrigger>
+                                        <SelectTrigger className="bg-secondary/20 h-12 text-sm border-border"><SelectValue placeholder="Seçim yapınız" /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="Merkez Mahallesi">Merkez Mahallesi</SelectItem>
-                                            <SelectItem value="Fatih Mahallesi">Fatih Mahallesi</SelectItem>
-                                            <SelectItem value="Atatürk Mahallesi">Atatürk Mahallesi</SelectItem>
+                                            {neighborhoods.length === 0 ? (
+                                                <SelectItem value="none" disabled>Mahalle bulunamadı.</SelectItem>
+                                            ) : (
+                                                neighborhoods.map((n: any) => (
+                                                    <SelectItem key={n.id} value={n.name}>{n.name}</SelectItem>
+                                                ))
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-zinc-500">İLETİŞİM TELEFONU</Label>
-                                    <Input name="telefon" defaultValue={household.contactNumber || ""} className="bg-zinc-50 h-11 border-zinc-100" />
-                                </div>
-                                <div className="md:col-span-1 space-y-2">
-                                    <Label className="text-xs font-bold text-zinc-500">AÇIK ADRES</Label>
-                                    <Input name="adres" defaultValue={clarifyAddress || ""} className="bg-zinc-50 h-11 border-zinc-100" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="glass-card border-0 shadow-xl overflow-hidden">
-                        <CardHeader className="pb-4 border-b">
-                            <CardTitle className="text-xl font-bold flex items-center gap-2"><Wallet className="w-5 h-5 text-emerald-500" /> Sosyo-Ekonomik Durum</CardTitle>
-                            <CardDescription>Gelir ve gider kalemlerini buradan yönetin.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="pt-8 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-zinc-500 flex items-center gap-1.5"><Wallet className="w-3.5 h-3.5 text-zinc-400" /> AYLIK GELİR (TL)</Label>
-                                    <Input name="gelir" type="number" defaultValue={(household.monthlyIncome || 0).toString()} className="h-11 font-bold text-lg text-emerald-600" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-zinc-500 flex items-center gap-1.5"><Receipt className="w-3.5 h-3.5 text-zinc-400" /> KİRA/BORÇ (TL)</Label>
-                                    <Input name="debtAmount" type="number" defaultValue={(household.debtAmount || 0).toString()} className="h-11 font-bold text-lg text-red-600" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-zinc-500 flex items-center gap-1.5"><Home className="w-3.5 h-3.5 text-zinc-400" /> MÜLKİYET</Label>
-                                    <Select name="kira" defaultValue={household.rentStatus || "kiraci"}>
-                                        <SelectTrigger className="h-11 bg-zinc-50 border-zinc-100"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="kiraci">Kiracı</SelectItem>
-                                            <SelectItem value="mulk-sahibi">Mülk Sahibi</SelectItem>
-                                            <SelectItem value="akraba-yani">Akraba Yanı</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-zinc-500 flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-zinc-400" /> ISINMA</Label>
-                                    <Select name="heatingType" defaultValue={household.heatingType || "dogalgaz"}>
-                                        <SelectTrigger className="h-11 bg-zinc-50 border-zinc-100"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="dogalgaz">Doğalgaz</SelectItem>
-                                            <SelectItem value="soba">Soba</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-4 pt-4">
-                                <div className="flex items-center space-x-3 p-5 rounded-2xl bg-zinc-50 border border-zinc-100 min-w-[200px] flex-1">
-                                    <Checkbox id="car" name="carOwnership" value="true" defaultChecked={!!household.carOwnership} className="w-5 h-5" />
-                                    <div>
-                                        <Label htmlFor="car" className="text-sm font-bold block">Araç Sahipliği</Label>
-                                        <p className="text-[10px] text-zinc-400 font-medium">Hane adına kayıtlı taşıt</p>
+                                <div className="p-6 md:p-8 space-y-3 md:col-span-2">
+                                    <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-10 md:mt-0 block">DETAYLI AÇIK ADRES</Label>
+                                    <Input name="adres" defaultValue={clarifyAddress || ""} placeholder="Örn: Bahar Sokak, Gül Apt, No: 12, Daire: 4" required className="bg-secondary/20 h-12 text-sm border-border w-full" />
+                                    <div className="pt-4">
+                                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-3">İLETİŞİM TELEFONU</Label>
+                                        <Input name="telefon" defaultValue={household.contactNumber || ""} placeholder="05XX XXX XX XX" className="bg-secondary/20 h-12 text-sm border-border md:w-1/2" />
                                     </div>
                                 </div>
-                                <div className="flex items-center space-x-3 p-5 rounded-2xl bg-zinc-50 border border-zinc-100 min-w-[200px] flex-1">
-                                    <Checkbox id="est" name="estateOwnership" value="true" defaultChecked={!!household.estateOwnership} className="w-5 h-5" />
-                                    <div>
-                                        <Label htmlFor="est" className="text-sm font-bold block">Ek Gayrimenkul</Label>
-                                        <p className="text-[10px] text-zinc-400 font-medium">Gelir getiren veya ek tapu</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* MALİ DURUM & GİDERLER */}
+                    <div id="mali" className="scroll-mt-24">
+                        <div className="flex items-center gap-3 mb-4 px-2">
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">2</div>
+                            <h2 className="text-2xl font-black tracking-tight text-foreground">Mali Durum & Gider Analizi</h2>
+                        </div>
+                        <Card className="glass-card border-0 shadow-xl overflow-hidden">
+
+                            {/* GELIR ROW */}
+                            <CardContent className="p-0 border-b border-border bg-emerald-50/30">
+                                <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                                    <div className="space-y-3">
+                                        <Label className="text-xs font-bold text-emerald-800 uppercase tracking-widest flex items-center gap-2"><Wallet className="w-4 h-4" /> AYLIK NET GELİR</Label>
+                                        <div className="relative">
+                                            <Input name="gelir" type="number" defaultValue={(household.monthlyIncome || 0).toString()} className="h-14 text-lg font-bold pl-12 bg-white border-emerald-200" />
+                                            <span className="absolute left-4 top-4 text-emerald-700 font-bold">₺</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <Label className="text-xs font-bold text-emerald-800 uppercase tracking-widest flex items-center gap-2"><Wallet className="w-4 h-4" /> DÜZENLİ SOSYAL YARDIM</Label>
+                                        <div className="relative">
+                                            <Input name="socialAidAmount" type="number" defaultValue={(household.socialAidAmount || 0).toString()} className="h-14 text-lg font-bold pl-12 bg-white border-emerald-200 text-emerald-700" />
+                                            <span className="absolute left-4 top-4 text-emerald-700 font-bold">₺</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                            </CardContent>
 
-                <div className="lg:col-span-12 flex justify-end gap-3 pt-6 border-t border-dashed">
-                    <Link href={`/haneler/${id}`}>
-                        <Button type="button" variant="ghost" className="h-12 px-8">İptal</Button>
-                    </Link>
-                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 h-12 px-12 text-lg font-bold shadow-xl shadow-emerald-200">
-                        <Save className="mr-2 h-5 w-5" /> Güncellemeleri Kaydet
-                    </Button>
+                            {/* GIDERLER GRID */}
+                            <CardContent className="p-6 md:p-8 space-y-6">
+                                <div>
+                                    <h3 className="text-sm font-bold text-foreground mb-4">Gider Kırılımları (Aylık Tahmini)</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                                        {[
+                                            { name: "kira-miktari", label: "Kira", val: household.rentAmount },
+                                            { name: "billExpense", label: "Fatura (Elk/Su/Gaz)", val: household.billExpense },
+                                            { name: "foodExpense", label: "Mutfak / Erzak", val: household.foodExpense },
+                                            { name: "heatingExpense", label: "Aylık Yakıt/Isınma", val: household.heatingExpense },
+                                            { name: "educationExpense", label: "Eğitim & Okul", val: household.educationExpense },
+                                            { name: "healthExpense", label: "Sağlık & İlaç", val: household.healthExpense },
+                                            { name: "clothingExpense", label: "Giyim Masrafı", val: household.clothingExpense },
+                                            { name: "transportationExpense", label: "Ulaşım Gideri", val: household.transportationExpense },
+                                            { name: "babyExpense", label: "Bebek Masrafı (Bez/Mama)", val: household.babyExpense },
+                                            { name: "debtAmount", label: "Borç & Kredi Ödemesi", val: household.debtAmount },
+                                        ].map((gider, i) => (
+                                            <div key={i} className="space-y-2">
+                                                <Label className="text-[11px] font-bold text-muted-foreground uppercase">{gider.label}</Label>
+                                                <div className="relative">
+                                                    <Input name={gider.name} type="number" defaultValue={(gider.val || 0).toString()} className="h-10 pl-8 bg-secondary/30 text-sm border-border" />
+                                                    <span className="absolute left-3 top-2.5 text-muted-foreground text-xs font-bold">₺</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* EV & YAŞAM ŞARTLARI */}
+                    <div id="yasam_sartlari" className="scroll-mt-24">
+                        <div className="flex items-center gap-3 mb-4 px-2">
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">3</div>
+                            <h2 className="text-2xl font-black tracking-tight text-foreground">Ev & Yaşam Şartları</h2>
+                        </div>
+                        <Card className="glass-card border-0 shadow-xl bg-card overflow-hidden">
+                            <CardContent className="p-6 md:p-8 space-y-8">
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold text-muted-foreground uppercase">Mülkiyet Durumu</Label>
+                                        <Select name="kira" defaultValue={household.rentStatus || "kiraci"}>
+                                            <SelectTrigger className="h-11 text-sm bg-secondary/30 border-border"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="kiraci">Kiracı</SelectItem>
+                                                <SelectItem value="mulk-sahibi">Mülk Sahibi</SelectItem>
+                                                <SelectItem value="akraba-yani">Akraba Yanı</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold text-muted-foreground uppercase">Isınma Sistemi</Label>
+                                        <Select name="heatingType" defaultValue={household.heatingType || "dogalgaz"}>
+                                            <SelectTrigger className="h-11 text-sm bg-secondary/30 border-border"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="dogalgaz">Doğalgaz (Kombi)</SelectItem>
+                                                <SelectItem value="soba">Kömür Sobası</SelectItem>
+                                                <SelectItem value="elektrik">Elektrikli Isıtıcı</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold text-muted-foreground uppercase">Çatı / Yapı Durumu</Label>
+                                        <Select name="roofCondition" defaultValue={household.roofCondition || "saglam"}>
+                                            <SelectTrigger className="h-11 text-sm bg-secondary/30 border-border"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="saglam">Sağlam</SelectItem>
+                                                <SelectItem value="eski">Eski / Bakımsız</SelectItem>
+                                                <SelectItem value="akitiyor">Hasarlı / Akıtıyor</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold text-muted-foreground uppercase">Ev İçi Eşya Durumu</Label>
+                                        <Select name="furnitureCondition" defaultValue={household.furnitureCondition || "yeterli"}>
+                                            <SelectTrigger className="h-11 text-sm bg-secondary/30 border-border"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="yeterli">Yeterli / İyi</SelectItem>
+                                                <SelectItem value="eski">Eski / Karışık</SelectItem>
+                                                <SelectItem value="yetersiz">Çok Yetersiz / Hasarlı</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                <Label className="text-sm font-bold text-foreground">Fiziksel / Olanak Tespiti</Label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="flex items-center space-x-3 bg-secondary/40 p-4 rounded-xl border border-border cursor-pointer hover:bg-emerald-50 transition-colors">
+                                        <Checkbox id="c-rutubet" name="waterDamage" value="true" defaultChecked={!!household.waterDamage} className="w-5 h-5 border-red-500 data-[state=checked]:bg-red-500" />
+                                        <Label htmlFor="c-rutubet" className="text-sm font-bold cursor-pointer text-red-900">Evde Rutubet Var</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-3 bg-secondary/40 p-4 rounded-xl border border-border cursor-pointer hover:bg-emerald-50 transition-colors">
+                                        <Checkbox id="c-int" name="hasInternet" value="true" defaultChecked={!!household.hasInternet} className="w-5 h-5" />
+                                        <Label htmlFor="c-int" className="text-sm font-bold cursor-pointer">İnternet Var</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-3 bg-secondary/40 p-4 rounded-xl border border-border cursor-pointer hover:bg-emerald-50 transition-colors">
+                                        <Checkbox id="c-wash" name="hasWashingMachine" value="true" defaultChecked={!!household.hasWashingMachine} className="w-5 h-5" />
+                                        <Label htmlFor="c-wash" className="text-sm font-bold cursor-pointer">Çamaşır Makinesi Var</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-3 bg-secondary/40 p-4 rounded-xl border border-border cursor-pointer hover:bg-emerald-50 transition-colors">
+                                        <Checkbox id="c-ref" name="hasRefrigerator" value="true" defaultChecked={!!household.hasRefrigerator} className="w-5 h-5" />
+                                        <Label htmlFor="c-ref" className="text-sm font-bold cursor-pointer">Buzdolabı Var</Label>
+                                    </div>
+                                </div>
+                                <hr className="border-border/60" />
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2 flex flex-col justify-end pb-2">
+                                        <div className="flex items-center space-x-3 bg-secondary/40 p-3 rounded-xl border border-border cursor-pointer hover:bg-emerald-50 transition-colors">
+                                            <Checkbox id="c-car" name="carOwnership" value="true" defaultChecked={!!household.carOwnership} className="w-5 h-5" />
+                                            <Label htmlFor="c-car" className="text-sm font-bold cursor-pointer">Ticari/Şahsi Araç Var</Label>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2 flex flex-col justify-end pb-2">
+                                        <div className="flex items-center space-x-3 bg-secondary/40 p-3 rounded-xl border border-border cursor-pointer hover:bg-emerald-50 transition-colors">
+                                            <Checkbox id="c-est" name="estateOwnership" value="true" defaultChecked={!!household.estateOwnership} className="w-5 h-5" />
+                                            <Label htmlFor="c-est" className="text-sm font-bold cursor-pointer">Kirada Ek Mülk Var</Label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* DEĞERLENDİRME & NOTLAR */}
+                    <div id="degerlendirme" className="scroll-mt-24">
+                        <div className="flex items-center gap-3 mb-4 px-2">
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">4</div>
+                            <h2 className="text-2xl font-black tracking-tight text-foreground">Saha Tahkikat Değerlendirmesi</h2>
+                        </div>
+                        <Card className="glass-card border-0 shadow-xl overflow-hidden bg-card">
+                            <div className="h-2 bg-amber-400"></div>
+                            <CardContent className="p-6 md:p-8 space-y-8">
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-bold text-amber-900 uppercase flex items-center gap-2"><FileText className="w-4 h-4" /> Hastalık / Engel / Sağlık Detayları</Label>
+                                    <Input name="diseaseDetails" defaultValue={household.diseaseDetails || ""} placeholder="Ailenin içerisinde kronik hasta, özel ilgi gerektiren durum veya raporlu/engelli birey varsa buraya detaylıca yazınız." className="h-12 bg-amber-50/50 border-amber-200 focus-visible:ring-amber-500 placeholder:text-amber-800/40 text-amber-950" />
+                                </div>
+                                <div className="space-y-3 mt-4">
+                                    <Label className="text-sm font-bold text-amber-900 uppercase flex items-center gap-2"><FileText className="w-4 h-4" /> Tahkikat Yapan Görevlinin Görüşü</Label>
+                                    <textarea name="notes" rows={5} defaultValue={household.notes || ""} placeholder="Gidilen evdeki genel sosyal yapı, tespit edilen spesifik mağduriyetler, gözlemlenen ekstra veriler..." className="w-full rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 placeholder:text-amber-800/40 text-amber-950 leading-relaxed resize-none" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* MOBIL SUBMIT BUTTON */}
+                    <div className="lg:hidden mt-8 flex flex-col gap-3">
+                        <Button type="submit" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 font-bold h-14 text-lg shadow-xl shadow-emerald-600/20">
+                            <Save className="mr-2 h-5 w-5" /> Güncellemeleri Kaydet
+                        </Button>
+                        <Link href={`/haneler/${id}`}>
+                            <Button type="button" variant="outline" className="w-full h-12">İptal, Geri Dön</Button>
+                        </Link>
+                    </div>
                 </div>
             </form>
         </div>

@@ -5,31 +5,34 @@ import {
     Users, MapPin, Phone, TrendingUp, Calendar, Home, Wallet,
     CheckCircle2, XCircle, FileText, GraduationCap, Car, Flame,
     Receipt, UserPlus, Trash2, Settings, ArrowLeft, Download,
-    AlertTriangle, Briefcase, HeartPulse, History, ShieldCheck
+    AlertTriangle, Briefcase, HeartPulse, History, ShieldCheck,
+    ShoppingCart, Package
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { approveHouseholdAction, approveOnceHouseholdAction, rejectHouseholdAction, removePersonAction } from "@/app/actions/household";
 import Link from "next/link";
 import { DeliveryPDFButton } from "@/components/export/DeliveryPDFButton";
 import { PersonAddModal } from "@/components/PersonAddModal";
 import { PrintButton } from "@/components/PrintButton";
+import { SignatureModal } from "@/components/SignatureModal";
 
 export default async function HouseholdDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const household: any = await (prisma.household as any).findUnique({
         where: { id },
         include: {
-            persons: {
-                orderBy: { isApplicant: "desc" } as any
-            },
+            persons: true,
             deliveries: {
-                include: {
-                    distributionEvent: true
-                },
-                orderBy: { createdAt: "desc" } as any
+                include: { distributionEvent: true },
+                orderBy: { createdAt: "desc" }
+            },
+            boutiqueTransactions: {
+                include: { boutiqueItem: true },
+                orderBy: { createdAt: "desc" }
             }
         }
     });
@@ -189,6 +192,8 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                                             { label: "Kira Bedeli", val: `${household.rentAmount} ₺`, icon: <Receipt className="w-3.5 h-3.5" /> },
                                             { label: "Isınma", val: household.heatingType, icon: <Flame className="w-3.5 h-3.5" /> },
                                             { label: "Araç Durumu", val: household.carOwnership ? "VAR" : "YOK", icon: <Car className="w-3.5 h-3.5" /> },
+                                            { label: "Çatı Durumu", val: household.roofCondition || "Bilinmiyor", icon: <Home className="w-3.5 h-3.5" /> },
+                                            { label: "Eşya Durumu", val: household.furnitureCondition || "Bilinmiyor", icon: <Briefcase className="w-3.5 h-3.5" /> },
                                         ].map((stat, i) => (
                                             <div key={i} className="flex items-center justify-between text-xs p-2.5 rounded-xl hover:bg-secondary/50 transition-colors">
                                                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -197,6 +202,13 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                                                 <span className="font-bold text-foreground uppercase">{stat.val}</span>
                                             </div>
                                         ))}
+
+                                        <div className="flex flex-wrap gap-2 pt-2">
+                                            {household.waterDamage && <Badge variant="destructive" className="text-[9px]"><AlertTriangle className="w-3 h-3 mr-1" /> RUTUBET / HASAR</Badge>}
+                                            {household.hasInternet && <Badge variant="secondary" className="text-[9px] bg-blue-50 text-blue-700">İnternet</Badge>}
+                                            {household.hasWashingMachine && <Badge variant="secondary" className="text-[9px] bg-indigo-50 text-indigo-700">Çamaşır Mk.</Badge>}
+                                            {household.hasRefrigerator && <Badge variant="secondary" className="text-[9px] bg-cyan-50 text-cyan-700">Buzdolabı</Badge>}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -205,9 +217,10 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
 
                     <Tabs defaultValue="members" className="space-y-6">
                         <div className="flex justify-between items-center px-1">
-                            <TabsList className="bg-transparent h-12 gap-2 p-0">
-                                <TabsTrigger value="members" className="rounded-full px-6 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm border">Hane Sakinleri</TabsTrigger>
-                                <TabsTrigger value="history" className="rounded-full px-6 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm border">Bağış & Dağıtım</TabsTrigger>
+                            <TabsList className="bg-transparent h-12 gap-2 p-0 flex-wrap overflow-x-auto">
+                                <TabsTrigger value="members" className="rounded-full px-4 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm border text-xs sm:text-sm">Hane Sakinleri</TabsTrigger>
+                                <TabsTrigger value="history" className="rounded-full px-4 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm border text-xs sm:text-sm">Bağış & Dağıtım</TabsTrigger>
+                                <TabsTrigger value="boutique" className="rounded-full px-4 data-[state=active]:bg-orange-500 data-[state=active]:text-white shadow-sm border border-orange-200 text-xs sm:text-sm whitespace-nowrap"><ShoppingCart className="w-3.5 h-3.5 mr-1 inline" /> Butik Bakiyesi & Harcama</TabsTrigger>
                             </TabsList>
                             <TabsContent value="members" className="m-0">
                                 <PersonAddModal householdId={household.id} />
@@ -230,7 +243,12 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                                                             <p className="font-bold text-foreground">{member.firstName} {member.lastName}</p>
                                                             {member.isApplicant && <Badge className="bg-emerald-500/10 text-emerald-500 border-0 text-[9px] h-4">BAŞVURU SAHİBİ</Badge>}
                                                         </div>
-                                                        <p className="text-xs text-muted-foreground font-medium">TC: {member.identityNo} • {member.birthDate?.toLocaleDateString("tr-TR")}</p>
+                                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                                                            TC: {member.identityNo} • {member.birthDate?.toLocaleDateString("tr-TR")} • {member.gender === 'KAD' ? 'Kadın' : member.gender === 'ERK' ? 'Erkek' : ''}
+                                                        </p>
+                                                        <p className="text-[10px] text-muted-foreground font-medium">
+                                                            {member.educationalLevel?.replace('_', ' ').toUpperCase()} • {member.employmentStatus?.replace('_', ' ').toUpperCase()} • {member.maritalStatus?.toUpperCase()} {member.monthlyIncome > 0 ? `• ${member.monthlyIncome}₺ Gelir` : ''}
+                                                        </p>
                                                     </div>
                                                 </div>
                                                 {!member.isApplicant && (
@@ -267,14 +285,30 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                                                         <div className="p-3 bg-secondary rounded-2xl"><Receipt className="w-5 h-5 text-muted-foreground" /></div>
                                                         <div>
                                                             <p className="font-bold text-foreground">{delivery.distributionEvent?.name}</p>
-                                                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">
-                                                                {delivery.deliveredAt ? `TESLİM: ${delivery.deliveredAt.toLocaleString("tr-TR")}` : "BEKLEMEDE"}
-                                                            </p>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">
+                                                                    {delivery.deliveredAt ? `TESLİM: ${delivery.deliveredAt.toLocaleString("tr-TR")}` : "BEKLEMEDE"}
+                                                                </p>
+                                                                {delivery.deliveredBy && (
+                                                                    <Badge variant="outline" className="text-[9px] h-4 border-zinc-200 text-zinc-500 font-medium">
+                                                                        GÖREVLİ: {delivery.deliveredBy}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <Badge className={delivery.status === "DELIVERED" ? "bg-emerald-500 text-white" : "bg-amber-400 text-black"}>
-                                                        {delivery.status === "DELIVERED" ? "Teslim Edildi" : "Sevkiyat Sürüyor"}
-                                                    </Badge>
+                                                    <div className="flex items-center gap-3">
+                                                        {delivery.signatureData && (
+                                                            <SignatureModal
+                                                                imageUrl={delivery.signatureData}
+                                                                volunteerName={delivery.deliveredBy}
+                                                                date={delivery.deliveredAt?.toLocaleString("tr-TR")}
+                                                            />
+                                                        )}
+                                                        <Badge className={delivery.status === "DELIVERED" ? "bg-emerald-500 text-white" : "bg-amber-400 text-black"}>
+                                                            {delivery.status === "DELIVERED" ? "Teslim Edildi" : "Sevkiyat Sürüyor"}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -282,33 +316,147 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                                 </CardContent>
                             </Card>
                         </TabsContent>
+
+                        {/* BUTIK TAB */}
+                        <TabsContent value="boutique" className="animate-in-fade space-y-6">
+
+                            {/* Bakiye Yükleme Kartı */}
+                            <Card className="glass-card border-0 shadow-lg border-orange-500/20 bg-orange-500/5">
+                                <CardHeader className="pb-3 border-b border-orange-500/10 flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-orange-600">
+                                            <ShoppingCart className="w-4 h-4" /> Butik Alışveriş Limiti
+                                        </CardTitle>
+                                        <CardDescription className="text-xs">Bu ailenin mağazadan kaç parça/kredi ürün alabileceğini belirleyin.</CardDescription>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-orange-500/60 font-bold uppercase">Mevcut Bakiye</p>
+                                        <p className="text-3xl font-black text-orange-500">{household.boutiqueBalance}</p>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="pt-4 flex items-center gap-3">
+                                    <form action={async (formData: FormData) => {
+                                        "use server";
+                                        const { updateHouseholdBoutiqueBalanceAction } = await import("@/app/actions/boutique");
+                                        const newBalance = parseInt(formData.get("balance") as string || "0");
+                                        await updateHouseholdBoutiqueBalanceAction(household.id, newBalance);
+                                    }} className="flex items-center gap-3 w-full">
+                                        <div className="flex-1 max-w-sm">
+                                            <label className="text-xs font-bold text-zinc-500 mb-1 block">Yeni Bakiye Miktarını Girin</label>
+                                            <Input name="balance" type="number" defaultValue={household.boutiqueBalance} className="bg-white/50 w-full font-bold text-lg text-orange-600 h-10 border-orange-200 focus-visible:ring-orange-500" />
+                                        </div>
+                                        <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 mt-5">Bakiyeyi Güncelle</Button>
+                                    </form>
+                                </CardContent>
+                            </Card>
+
+                            {/* Alışveriş Geçmişi */}
+                            <Card className="glass-card border-0 shadow-sm">
+                                <CardHeader className="pb-3 border-b border-border/50">
+                                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-zinc-400">
+                                        <History className="w-4 h-4" /> Alışveriş Geçmişi
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    {household.boutiqueTransactions?.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                                            <ShoppingCart className="w-8 h-8 mb-2 text-zinc-400" />
+                                            <p className="text-xs font-bold text-zinc-500">Hanenin henüz butik harcaması yok.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-border/50">
+                                            {household.boutiqueTransactions?.map((tx: any) => (
+                                                <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-zinc-900/10 transition-colors">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-2 bg-orange-500/10 rounded-xl text-orange-500">
+                                                            <Package className="w-4 h-4" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-sm text-foreground">{tx.boutiqueItem?.name}</p>
+                                                            <div className="flex gap-2 text-[10px] text-muted-foreground font-medium mt-1">
+                                                                <span className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-500">{tx.createdAt.toLocaleDateString("tr-TR")}</span>
+                                                                <span>Personel: {tx.createdBy || 'Sistem'}</span>
+                                                                <span className="font-mono">{tx.boutiqueItem?.barcode}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-xs text-zinc-500 font-bold mb-0.5">Miktar: {tx.quantity}x</p>
+                                                        <Badge variant="outline" className="border-red-200 text-red-600 bg-red-50">
+                                                            -{tx.pointsSpent} Kredi
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                        </TabsContent>
                     </Tabs>
                 </div>
 
                 {/* SAĞ: Özet Bilgiler */}
-                <div className="space-y-8">
+                <div className="space-y-6">
                     <Card className="glass-card border-0 shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 blur-[80px]"></div>
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-emerald-500" /> Tahkikat Özeti</CardTitle>
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 blur-3xl"></div>
+                        <CardHeader className="pb-4 border-b border-border/50">
+                            <CardTitle className="text-lg flex items-center gap-2"><Wallet className="w-5 h-5 text-emerald-500" /> Mali Durum Özeti</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center border-b border-border/50 pb-3">
-                                    <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Mülkiyet Durumu</span>
-                                    <span className="font-bold text-sm uppercase text-foreground">{household.rentStatus}</span>
+                        <CardContent className="space-y-6 pt-6">
+                            <div className="space-y-3">
+                                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Gelir & Yardım</h4>
+                                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                                    <div className="flex justify-between items-center pb-2 border-b border-emerald-100/50">
+                                        <span className="text-emerald-700 text-xs font-bold">Aylık Net Gelir</span>
+                                        <span className="font-black text-sm text-emerald-700">{(household.monthlyIncome || 0).toLocaleString()} ₺</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-2">
+                                        <span className="text-emerald-700/80 text-xs font-bold">Sosyal Yardım</span>
+                                        <span className="font-bold text-sm text-emerald-600">{(household.socialAidAmount || 0).toLocaleString()} ₺</span>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between items-center border-b border-border/50 pb-3">
-                                    <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Aylık Gelir</span>
-                                    <span className="font-black text-sm text-emerald-600 dark:text-emerald-400">{(household.monthlyIncome || 0).toLocaleString()} ₺</span>
+                            </div>
+
+                            <div className="space-y-3">
+                                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Gider Kırılımları</h4>
+                                <div className="bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
+                                    {[
+                                        { label: "Kira", val: household.rentAmount || 0 },
+                                        { label: "Faturalar", val: household.billExpense || 0 },
+                                        { label: "Yakıt", val: household.heatingExpense || 0 },
+                                        { label: "Mutfak", val: household.foodExpense || 0 },
+                                        { label: "Eğitim", val: household.educationExpense || 0 },
+                                        { label: "Sağlık", val: household.healthExpense || 0 },
+                                        { label: "Giyim", val: household.clothingExpense || 0 },
+                                        { label: "Ulaşım", val: household.transportationExpense || 0 },
+                                        { label: "Bebek/Çocuk", val: household.babyExpense || 0 },
+                                        { label: "Borç / Kredi", val: household.debtAmount || 0 },
+                                    ].map((expense, i) => expense.val > 0 && (
+                                        <div key={i} className="flex justify-between items-center border-b border-red-100/50 pb-2 last:border-0 last:pb-0">
+                                            <span className="text-red-700/80 text-xs font-bold">{expense.label}</span>
+                                            <span className="font-bold text-sm text-red-700">{(expense.val).toLocaleString()} ₺</span>
+                                        </div>
+                                    ))}
+                                    <div className="flex justify-between items-center pt-2 mt-2 border-t border-red-200">
+                                        <span className="text-red-800 text-xs font-black uppercase">Toplam Gider</span>
+                                        <span className="font-black text-sm text-red-800">
+                                            {((household.rentAmount || 0) + (household.billExpense || 0) + (household.heatingExpense || 0) + (household.foodExpense || 0) + (household.educationExpense || 0) + (household.healthExpense || 0) + (household.clothingExpense || 0) + (household.transportationExpense || 0) + (household.babyExpense || 0) + (household.debtAmount || 0)).toLocaleString()} ₺
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between items-center border-b border-border/50 pb-3">
-                                    <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Gider & Borç</span>
-                                    <span className="font-black text-sm text-red-600 dark:text-red-400">{(household.rentAmount + household.debtAmount || 0).toLocaleString()} ₺</span>
+                            </div>
+
+                            <div className="space-y-3">
+                                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Diğer Bilgiler</h4>
+                                <div className="flex justify-between items-center px-4 py-3 bg-secondary/50 rounded-xl">
+                                    <span className="text-muted-foreground text-xs font-bold">Mülkiyet</span>
+                                    <span className="font-bold text-xs uppercase text-foreground">{household.rentStatus}</span>
                                 </div>
-                                <div className="flex justify-between items-center border-b border-border/50 pb-3">
-                                    <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Çalışan Sayısı</span>
-                                    <span className="font-bold text-sm text-foreground">{household.workerCount} Kişi</span>
+                                <div className="flex justify-between items-center px-4 py-3 bg-secondary/50 rounded-xl">
+                                    <span className="text-muted-foreground text-xs font-bold">Çalışan Sayısı</span>
+                                    <span className="font-bold text-xs text-foreground">{household.workerCount} Kişi</span>
                                 </div>
                             </div>
 
@@ -318,6 +466,29 @@ export default async function HouseholdDetailPage({ params }: { params: Promise<
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* V6 Note Box */}
+                    {(household.notes || household.diseaseDetails) && (
+                        <Card className="glass-card border-0 bg-amber-50/50 border-amber-100">
+                            <CardHeader className="pb-3 border-b border-amber-100/50">
+                                <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-600"><FileText className="w-4 h-4" /> Tahkikat Değerlendirmesi</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4 space-y-4">
+                                {household.diseaseDetails && (
+                                    <div>
+                                        <p className="text-[10px] font-bold text-amber-700/60 uppercase mb-1">Hastalık / Engel Durumu</p>
+                                        <p className="text-xs font-semibold text-amber-900">{household.diseaseDetails}</p>
+                                    </div>
+                                )}
+                                {household.notes && (
+                                    <div>
+                                        <p className="text-[10px] font-bold text-amber-700/60 uppercase mb-1">Görevli Notu</p>
+                                        <p className="text-xs font-medium text-amber-900 italic">"{household.notes}"</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Card className="glass-card border-0 bg-red-500/10">
                         <CardHeader className="pb-2">

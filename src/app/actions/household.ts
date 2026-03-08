@@ -27,6 +27,28 @@ export async function createHouseholdAction(formData: FormData) {
     const carOwnership = formData.get("carOwnership") === "true";
     const estateOwnership = formData.get("estateOwnership") === "true";
 
+    const foodExpense = parseInt((formData.get("foodExpense") as string) || "0", 10);
+    const educationExpense = parseInt((formData.get("educationExpense") as string) || "0", 10);
+    const billExpense = parseInt((formData.get("billExpense") as string) || "0", 10);
+    const healthExpense = parseInt((formData.get("healthExpense") as string) || "0", 10);
+    const otherExpense = parseInt((formData.get("otherExpense") as string) || "0", 10);
+    const socialAidAmount = parseInt((formData.get("socialAidAmount") as string) || "0", 10);
+
+    const heatingExpense = parseInt((formData.get("heatingExpense") as string) || "0", 10);
+    const clothingExpense = parseInt((formData.get("clothingExpense") as string) || "0", 10);
+    const transportationExpense = parseInt((formData.get("transportationExpense") as string) || "0", 10);
+    const babyExpense = parseInt((formData.get("babyExpense") as string) || "0", 10);
+
+    const roofCondition = formData.get("roofCondition") as string || null;
+    const waterDamage = formData.get("waterDamage") === "true";
+    const furnitureCondition = formData.get("furnitureCondition") as string || null;
+    const hasInternet = formData.get("hasInternet") === "true";
+    const hasWashingMachine = formData.get("hasWashingMachine") === "true";
+    const hasRefrigerator = formData.get("hasRefrigerator") === "true";
+
+    const notes = formData.get("notes") as string || null;
+    const diseaseDetails = formData.get("diseaseDetails") as string || null;
+
     // Dinamik Hane Sakinleri (V4)
     // Form verilerinden "person_json" adında bir array bekliyoruz veya manuel parse edeceğiz
     const personsDataRaw = formData.get("persons_json") as string;
@@ -43,6 +65,11 @@ export async function createHouseholdAction(formData: FormData) {
     const identityNo = formData.get("identityNo") as string;
     const birthDateValue = formData.get("birthDate") as string;
     const birthDate = birthDateValue ? new Date(birthDateValue) : null;
+    const gender = formData.get("gender") as string || null;
+    const educationalLevel = formData.get("educationalLevel") as string || null;
+    const maritalStatus = formData.get("maritalStatus") as string || null;
+    const employmentStatus = formData.get("employmentStatus") as string || null;
+    const pMonthlyIncome = parseInt((formData.get("pMonthlyIncome") as string) || "0", 10);
 
     try {
         const newHousehold = await (prisma as any).$transaction(async (tx: any) => {
@@ -60,6 +87,24 @@ export async function createHouseholdAction(formData: FormData) {
                     estateOwnership,
                     debtAmount,
                     heatingType,
+                    foodExpense,
+                    educationExpense,
+                    billExpense,
+                    healthExpense,
+                    otherExpense,
+                    socialAidAmount,
+                    heatingExpense,
+                    clothingExpense,
+                    transportationExpense,
+                    babyExpense,
+                    roofCondition,
+                    waterDamage,
+                    furnitureCondition,
+                    hasInternet,
+                    hasWashingMachine,
+                    hasRefrigerator,
+                    notes,
+                    diseaseDetails,
                 },
             });
 
@@ -71,6 +116,11 @@ export async function createHouseholdAction(formData: FormData) {
                     lastName,
                     identityNo,
                     birthDate,
+                    gender,
+                    educationalLevel,
+                    maritalStatus,
+                    employmentStatus,
+                    monthlyIncome: pMonthlyIncome,
                     isApplicant: true,
                 },
             });
@@ -84,6 +134,11 @@ export async function createHouseholdAction(formData: FormData) {
                         lastName: p.lastName,
                         identityNo: p.identityNo,
                         birthDate: p.birthDate ? new Date(p.birthDate) : null,
+                        gender: p.gender || null,
+                        educationalLevel: p.educationalLevel || null,
+                        maritalStatus: p.maritalStatus || null,
+                        employmentStatus: p.employmentStatus || null,
+                        monthlyIncome: p.monthlyIncome ? parseInt(p.monthlyIncome, 10) : 0,
                         isStudent: !!p.isStudent,
                         isDisabled: !!p.isDisabled,
                         hasChronicIllness: !!p.hasChronicIllness,
@@ -127,6 +182,28 @@ export async function updateHouseholdAction(id: string, formData: FormData) {
     const carOwnership = formData.get("carOwnership") === "true";
     const estateOwnership = formData.get("estateOwnership") === "true";
 
+    const foodExpense = parseInt((formData.get("foodExpense") as string) || "0", 10);
+    const educationExpense = parseInt((formData.get("educationExpense") as string) || "0", 10);
+    const billExpense = parseInt((formData.get("billExpense") as string) || "0", 10);
+    const healthExpense = parseInt((formData.get("healthExpense") as string) || "0", 10);
+    const otherExpense = parseInt((formData.get("otherExpense") as string) || "0", 10);
+    const socialAidAmount = parseInt((formData.get("socialAidAmount") as string) || "0", 10);
+
+    const heatingExpense = parseInt((formData.get("heatingExpense") as string) || "0", 10);
+    const clothingExpense = parseInt((formData.get("clothingExpense") as string) || "0", 10);
+    const transportationExpense = parseInt((formData.get("transportationExpense") as string) || "0", 10);
+    const babyExpense = parseInt((formData.get("babyExpense") as string) || "0", 10);
+
+    const roofCondition = formData.get("roofCondition") as string || null;
+    const waterDamage = formData.get("waterDamage") === "true";
+    const furnitureCondition = formData.get("furnitureCondition") as string || null;
+    const hasInternet = formData.get("hasInternet") === "true";
+    const hasWashingMachine = formData.get("hasWashingMachine") === "true";
+    const hasRefrigerator = formData.get("hasRefrigerator") === "true";
+
+    const notes = formData.get("notes") as string || null;
+    const diseaseDetails = formData.get("diseaseDetails") as string || null;
+
     try {
         await (prisma as any).household.update({
             where: { id },
@@ -141,6 +218,24 @@ export async function updateHouseholdAction(id: string, formData: FormData) {
                 estateOwnership,
                 debtAmount,
                 heatingType,
+                foodExpense,
+                educationExpense,
+                billExpense,
+                healthExpense,
+                otherExpense,
+                socialAidAmount,
+                heatingExpense,
+                clothingExpense,
+                transportationExpense,
+                babyExpense,
+                roofCondition,
+                waterDamage,
+                furnitureCondition,
+                hasInternet,
+                hasWashingMachine,
+                hasRefrigerator,
+                notes,
+                diseaseDetails,
             }
         });
 
@@ -168,6 +263,11 @@ export async function addPersonAction(householdId: string, personData: any) {
                 lastName: personData.lastName,
                 identityNo: personData.identityNo,
                 birthDate: personData.birthDate ? new Date(personData.birthDate) : null,
+                gender: personData.gender || null,
+                educationalLevel: personData.educationalLevel || null,
+                maritalStatus: personData.maritalStatus || null,
+                employmentStatus: personData.employmentStatus || null,
+                monthlyIncome: personData.monthlyIncome ? parseInt(personData.monthlyIncome, 10) : 0,
                 isStudent: !!personData.isStudent,
                 isDisabled: !!personData.isDisabled,
                 hasChronicIllness: !!personData.hasChronicIllness,

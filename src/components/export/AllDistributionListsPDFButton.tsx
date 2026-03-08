@@ -44,7 +44,7 @@ export function AllDistributionListsPDFButton({ event, lists }: AllDistributionL
 
                 // --- QR Code ---
                 if (list.token) {
-                    const qrUrl = `${window.location.origin}/saha/liste/${list.token}`;
+                    const qrUrl = `${window.location.host === 'localhost:3000' ? 'http://' : 'https://'}${window.location.host}/saha/liste/${list.token}`;
                     try {
                         const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 200, type: "image/png" });
                         doc.addImage(qrDataUrl, "PNG", 240, 10, 40, 40);

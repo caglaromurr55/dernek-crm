@@ -16,6 +16,18 @@ export async function claimDistributionListAction(formData: FormData) {
     }
 
     try {
+        // --- ENGELLEME KONTROLÜ ---
+        const volunteerData = await prisma.volunteer.findUnique({
+            where: { phone }
+        });
+
+        if (volunteerData?.isBlocked) {
+            return {
+                success: false,
+                message: "Güvenlik nedeniyle bu telefon numarası ile yeni liste üstlenemezsiniz. Lütfen dernek merkezi ile iletişime geçin."
+            };
+        }
+
         const list = await prisma.distributionList.findUnique({
             where: { token }
         });
@@ -28,16 +40,24 @@ export async function claimDistributionListAction(formData: FormData) {
             return { success: false, message: "Bu liste zaten başka bir gönüllü tarafından üstlenilmiş." };
         }
 
-        await prisma.distributionList.update({
-            where: { token },
-            data: {
-                assignedTo: name,
-                assignedPhone: phone
-            }
-        });
+        // Listeyi ata ve gerekirse Gönüllü kaydını oluştur/güncelle
+        await prisma.$transaction([
+            prisma.distributionList.update({
+                where: { token },
+                data: {
+                    assignedTo: name,
+                    assignedPhone: phone
+                }
+            }),
+            prisma.volunteer.upsert({
+                where: { phone },
+                create: { name, phone },
+                update: { name } // İsmi güncelleyebiliriz
+            })
+        ]);
 
         revalidatePath(`/saha/liste/${token}`);
-        revalidatePath(`/dagitim/liste/${list.id}`); // Yöneticinin sayfasını da yenile
+        revalidatePath(`/dagitim/liste/${list.id}`);
 
         return { success: true };
     } catch (error) {

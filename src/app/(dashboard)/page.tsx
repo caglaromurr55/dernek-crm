@@ -1,11 +1,13 @@
 export const dynamic = "force-dynamic";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, AlertTriangle, PackageCheck, TrendingUp, HandHeart, Calendar, ArrowRight, UserPlus, MapPin, Activity } from "lucide-react";
+import { Users, AlertTriangle, PackageCheck, TrendingUp, HandHeart, Calendar, ArrowRight, UserPlus, MapPin, Activity, ShoppingBag } from "lucide-react";
 import prisma from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PredictiveChart } from "@/components/PredictiveChart";
+
+import { BarcodeQueryButton } from "@/components/BarcodeQueryButton";
 
 export default async function Home() {
   const [
@@ -15,8 +17,8 @@ export default async function Home() {
     highScoreCount
   ] = await Promise.all([
     prisma.household.count(),
-    (prisma as any).delivery.count({ where: { status: "DELIVERED" } }),
-    (prisma as any).delivery.count({ where: { status: "PENDING" } }),
+    prisma.delivery.count({ where: { status: "DELIVERED" } }),
+    prisma.delivery.count({ where: { status: "PENDING" } }),
     prisma.household.count({ where: { score: { gte: 80 } } })
   ]);
 
@@ -35,13 +37,19 @@ export default async function Home() {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-extrabold tracking-tight premium-gradient-text">Hoş Geldiniz, Yönetici</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight premium-gradient-text">Genel Bakış</h1>
           <p className="text-muted-foreground font-medium">Dernek CRM saha operasyonları ve başvuru takip merkezi.</p>
         </div>
-        <div className="flex gap-3">
-          <Link href="/haneler/yeni">
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 h-12 shadow-lg shadow-emerald-500/20 border-0 group">
-              <UserPlus className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" /> Yeni Kayıt Oluştur
+        <div className="flex flex-nowrap items-center gap-3 md:gap-4 shrink-0">
+          <BarcodeQueryButton />
+          <Link href="/manuel-teslimat" className="shrink-0">
+            <Button variant="outline" className="h-11 border-emerald-600/30 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold px-4 md:px-6 shadow-sm rounded-2xl transition-all whitespace-nowrap">
+              <ShoppingBag className="mr-2 h-5 w-5" /> Manuel Teslimat
+            </Button>
+          </Link>
+          <Link href="/haneler/yeni" className="shrink-0">
+            <Button className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 md:px-6 shadow-lg shadow-emerald-100 border-0 rounded-2xl transition-all hover:scale-105 active:scale-95 whitespace-nowrap">
+              <UserPlus className="mr-2 h-5 w-5" /> Yeni Hane
             </Button>
           </Link>
         </div>
