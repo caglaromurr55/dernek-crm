@@ -40,7 +40,7 @@ export default async function Home() {
           <h1 className="text-4xl font-extrabold tracking-tight premium-gradient-text">Genel Bakış</h1>
           <p className="text-muted-foreground font-medium">Dernek CRM saha operasyonları ve başvuru takip merkezi.</p>
         </div>
-        <div className="flex flex-nowrap items-center gap-3 md:gap-4 shrink-0">
+        <div className="flex flex-wrap w-full lg:w-auto items-center gap-3 md:gap-4 shrink-0">
           <BarcodeQueryButton />
           <Link href="/manuel-teslimat" className="shrink-0">
             <Button variant="outline" className="h-11 border-emerald-600/30 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold px-4 md:px-6 shadow-sm rounded-2xl transition-all whitespace-nowrap">

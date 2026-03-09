@@ -112,7 +112,7 @@ export default async function HanelerPage({ searchParams }: Props) {
                     <h1 className="text-4xl font-extrabold tracking-tight premium-gradient-text">Hane Portföyü</h1>
                     <p className="text-muted-foreground font-medium">Sistemdeki tüm ihtiyaç sahibi haneleri ve başvuru süreçlerini yönetin.</p>
                 </div>
-                <div className="flex flex-nowrap items-center gap-2 md:gap-3 shrink-0">
+                <div className="flex flex-wrap w-full lg:w-auto items-center gap-2 md:gap-3 shrink-0">
                     <BarcodeQueryButton />
                     <ExportButtons status={status} query={query} />
                     <Link href="/manuel-teslimat" className="shrink-0">

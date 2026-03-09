@@ -4,9 +4,37 @@ import prisma from "@/lib/prisma";
 export async function POST(req: Request, { params }: { params: Promise<{ userId: string }> }) {
     try {
         const { userId } = await params;
-        const body = await req.json();
+        let body: any;
 
-        // Ensure body is an array and take the first element (the scanned document)
+        try {
+            const tempBodyText = await req.text();
+
+            if (!tempBodyText) {
+                return NextResponse.json({ error: "Empty payload received" }, { status: 400 });
+            }
+
+            try {
+                body = JSON.parse(tempBodyText);
+            } catch (e) {
+                // If pure JSON parse fails, try checking if it's form-data or other encoding but generally throw
+                console.error("Failed to parse JSON:", tempBodyText);
+                return NextResponse.json({ error: "Invalid JSON format in payload." }, { status: 400 });
+            }
+        } catch (e) {
+            console.error("Error reading request text:", e);
+            return NextResponse.json({ error: "Could not read request body" }, { status: 400 });
+        }
+
+        // Sometimes webhook tools send a nested struct { data: [...] } or a single object {...}
+        if (body && typeof body === 'object' && !Array.isArray(body)) {
+            if (Array.isArray(body.data)) {
+                body = body.data;
+            } else {
+                body = [body];
+            }
+        }
+
+        // Ensure body is now an array
         if (!Array.isArray(body) || body.length === 0) {
             return NextResponse.json({ error: "Invalid payload format. Expected an array." }, { status: 400 });
         }
