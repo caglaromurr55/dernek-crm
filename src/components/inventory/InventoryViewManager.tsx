@@ -35,6 +35,7 @@ import Link from "next/link";
 import { StockMovementButton } from "@/components/inventory/StockMovementButton";
 import { StockMovementModal } from "@/components/inventory/StockMovementModal";
 import { QuickAssembleButton } from "@/components/inventory/QuickAssembleButton";
+import { DocumentDeliveryButton } from "@/components/inventory/DocumentDeliveryButton";
 
 interface InventoryViewManagerProps {
     items: any[];
@@ -106,6 +107,7 @@ export function InventoryViewManager({ items }: InventoryViewManagerProps) {
                                                     }
                                                 />
                                             )}
+                                            <DocumentDeliveryButton itemId={item.id} itemName={item.name} disabled={item.stock <= 0} />
                                             <StockMovementButton itemId={item.id} itemName={item.name} />
                                         </div>
                                         <Link href={`/yardim-turleri/${item.id}`} className="w-full">
@@ -176,6 +178,7 @@ export function InventoryViewManager({ items }: InventoryViewManagerProps) {
                                                             }
                                                         />
                                                     )}
+                                                    <DocumentDeliveryButton itemId={item.id} itemName={item.name} disabled={item.stock <= 0} />
                                                     <StockMovementModal item={item} type="IN" />
                                                     <StockMovementModal item={item} type="OUT" />
                                                     <Link href={`/yardim-turleri/${item.id}`}>

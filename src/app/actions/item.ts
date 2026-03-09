@@ -261,3 +261,48 @@ export async function updatePackageContentsAction(packageId: string, newContents
         return { success: false, error: "Paket içeriği güncellenirken sunucu hatası oluştu." };
     }
 }
+
+export async function createDocumentedDeliveryAction(itemId: string, quantity: number, targetEntity: string, notes: string) {
+    const session = await auth();
+    if (!session) return { success: false, error: "Unauthorized" };
+
+    try {
+        const item = await (prisma as any).item.findUnique({ where: { id: itemId } });
+        if (!item || item.stock < quantity) {
+            return { success: false, error: "Yetersiz stok." };
+        }
+
+        const reasonText = `BELGELI_TESLIMAT: ${targetEntity}${notes ? ` - ${notes}` : ""}`;
+
+        // Stok düşümünü ve hareket kaydını Transaction ile yap
+        const result = await prisma.$transaction(async (tx: any) => {
+            const newInventory = await tx.inventory.create({
+                data: {
+                    itemId,
+                    type: "OUT",
+                    quantity,
+                    reason: reasonText,
+                },
+            });
+
+            await tx.item.update({
+                where: { id: itemId },
+                data: {
+                    stock: {
+                        decrement: quantity,
+                    },
+                },
+            });
+
+            return newInventory;
+        });
+
+        await createAuditLog("UPDATE", "STOCK_OUT_DOCUMENTED", itemId, { quantity, targetEntity, notes, inventoryId: result.id });
+
+        revalidatePath("/yardim-turleri");
+        return { success: true, inventoryId: result.id };
+    } catch (error: any) {
+        console.error("Document delivery error:", error);
+        return { success: false, error: "Belgeli teslimat kaydedilirken bir hata oluştu." };
+    }
+}
