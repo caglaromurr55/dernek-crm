@@ -120,7 +120,7 @@ export default function ManualDeliveryPage() {
                                             placeholder="TC Kimlik No veya İsim ile arayın..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="pl-9 bg-zinc-900/50 border-zinc-800"
+                                            className="pl-9 bg-background border-border focus:ring-emerald-500/20"
                                         />
                                         {isSearching && (
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground animate-pulse">Arama yapılıyor...</span>
@@ -131,11 +131,11 @@ export default function ManualDeliveryPage() {
                                             <div
                                                 key={h.householdId}
                                                 onClick={() => setSelectedHousehold(h)}
-                                                className="p-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg cursor-pointer transition-colors"
+                                                className="p-3 bg-background hover:bg-muted border border-border rounded-lg cursor-pointer transition-colors"
                                             >
                                                 <div className="flex justify-between items-start mb-1">
-                                                    <span className="font-bold text-emerald-400">{h.name}</span>
-                                                    <span className="text-xs bg-zinc-800 px-2 py-0.5 rounded text-zinc-300">{h.score} HP</span>
+                                                    <span className="font-bold text-primary">{h.name}</span>
+                                                    <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded">{h.score} HP</span>
                                                 </div>
                                                 <div className="text-xs text-muted-foreground flex gap-3">
                                                     <span className="flex items-center gap-1"><User className="w-3 h-3" /> {h.identityNo}</span>
@@ -146,15 +146,15 @@ export default function ManualDeliveryPage() {
                                     </div>
                                 </>
                             ) : (
-                                <div className="p-4 bg-emerald-950/20 border border-emerald-900/50 rounded-xl">
+                                <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-foreground">
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
-                                            <h3 className="font-bold text-emerald-400 text-lg">{selectedHousehold.name}</h3>
-                                            <p className="text-sm text-zinc-400 font-mono">{selectedHousehold.identityNo}</p>
+                                            <h3 className="font-bold text-primary text-lg">{selectedHousehold.name}</h3>
+                                            <p className="text-sm text-muted-foreground font-mono">{selectedHousehold.identityNo}</p>
                                         </div>
-                                        <Button variant="outline" size="sm" onClick={() => setSelectedHousehold(null)} className="h-7 text-xs border-zinc-700">Değiştir</Button>
+                                        <Button variant="outline" size="sm" onClick={() => setSelectedHousehold(null)} className="h-7 text-xs border-border hover:bg-muted">Değiştir</Button>
                                     </div>
-                                    <div className="text-xs text-zinc-400 flex flex-col gap-1 mt-2 p-2 bg-zinc-950/40 rounded">
+                                    <div className="text-xs text-muted-foreground flex flex-col gap-1 mt-2 p-2 bg-muted/50 rounded">
                                         <span className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> {selectedHousehold.address}</span>
                                         <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> HP: {selectedHousehold.score} | Durum: {selectedHousehold.status}</span>
                                     </div>
@@ -178,9 +178,9 @@ export default function ManualDeliveryPage() {
                         </CardHeader>
                         <CardContent className="p-4 space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-zinc-300">Aktif Yardım Kampanyası</label>
+                                <label className="text-sm font-semibold text-foreground">Aktif Yardım Kampanyası</label>
                                 <Select disabled={loadingEvents} value={selectedEventId} onValueChange={setSelectedEventId}>
-                                    <SelectTrigger className="bg-zinc-900/50 border-zinc-800">
+                                    <SelectTrigger className="bg-background border-border">
                                         <SelectValue placeholder={loadingEvents ? "Kampanyalar yükleniyor..." : "Bir dağıtım paketi seçiniz..."} />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -190,10 +190,10 @@ export default function ManualDeliveryPage() {
                                         {events.map(ev => (
                                             <SelectItem key={ev.id} value={ev.id}>
                                                 <div className="flex items-center gap-2">
-                                                    <Package className="w-4 h-4 text-emerald-500" />
+                                                    <Package className="w-4 h-4 text-primary" />
                                                     <span>{ev.name}</span>
                                                     {ev.item && (
-                                                        <span className="text-[10px] bg-secondary px-1.5 rounded ml-2">Stok: {ev.item.stock}</span>
+                                                        <span className="text-[10px] bg-secondary text-secondary-foreground px-1.5 rounded ml-2">Stok: {ev.item.stock}</span>
                                                     )}
                                                 </div>
                                             </SelectItem>
@@ -203,17 +203,17 @@ export default function ManualDeliveryPage() {
                             </div>
 
                             <div className="space-y-2 pt-2">
-                                <label className="text-sm font-semibold text-zinc-300">Teslimat Notu (Opsiyonel)</label>
+                                <label className="text-sm font-semibold text-foreground">Teslimat Notu (Opsiyonel)</label>
                                 <Textarea
                                     placeholder="Dernek bürosunda elden teslim edildi vb."
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
                                     rows={3}
-                                    className="resize-none bg-zinc-900/50 border-zinc-800"
+                                    className="resize-none bg-background border-border"
                                 />
                             </div>
 
-                            <div className="pt-4 border-t border-zinc-800 mt-6 pb-2">
+                            <div className="pt-4 border-t border-border/50 mt-6 pb-2">
                                 <Button
                                     onClick={handleSubmit}
                                     disabled={submitting || !selectedEventId || !selectedHousehold}
