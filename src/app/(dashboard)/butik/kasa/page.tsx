@@ -180,7 +180,7 @@ export default function BoutiquePOSPage() {
                     </div>
                 </div>
                 {/* Hızlı Seçim Modu Göstergesi */}
-                <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 md:py-1.5 rounded-xl md:rounded-full border border-border text-xs text-muted-foreground w-full md:w-auto">
+                <div className="hidden md:flex items-center gap-2 bg-secondary/50 px-3 py-2 md:py-1.5 rounded-xl md:rounded-full border border-border text-xs text-muted-foreground w-full md:w-auto">
                     <Zap className="w-4 h-4 md:w-3.5 md:h-3.5 text-primary shrink-0" />
                     <span className="leading-tight">Barkod okuyucunuzu klavye modunda kullanabilirsiniz.</span>
                 </div>

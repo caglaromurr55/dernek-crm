@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { calculateHouseholdTags } from "@/lib/tagging";
 import { getScoringSettingsAction } from "@/app/actions/settings";
+import { getDefaultScoringSettings } from "@/lib/default-settings";
 
 export async function recalculateHouseholdScore(householdId: string) {
     const household = await (prisma as any).household.findUnique({
@@ -48,7 +49,7 @@ export async function recalculateHouseholdScore(householdId: string) {
 
     // Get dynamic settings
     const settingsResponse = await getScoringSettingsAction();
-    const settings = settingsResponse.data;
+    const settings = settingsResponse.data || getDefaultScoringSettings();
 
     // --- V4 Dinamik Veri Sayımı ---
     // Manuel girilen counts yerine gerçek person listesinden sayıyoruz
