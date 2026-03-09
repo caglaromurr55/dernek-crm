@@ -304,6 +304,21 @@ exports.Prisma.VolunteerScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.SystemSettingScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  value: 'value',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.MrzScanScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  readAt: 'readAt',
+  rawJson: 'rawJson'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -334,7 +349,9 @@ exports.Prisma.ModelName = {
   Neighborhood: 'Neighborhood',
   BoutiqueItem: 'BoutiqueItem',
   BoutiqueTransaction: 'BoutiqueTransaction',
-  Volunteer: 'Volunteer'
+  Volunteer: 'Volunteer',
+  SystemSetting: 'SystemSetting',
+  MrzScan: 'MrzScan'
 };
 
 /**

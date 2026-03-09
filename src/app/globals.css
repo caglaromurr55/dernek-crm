@@ -198,3 +198,31 @@
     opacity: 0.2;
   }
 }
+
+/* --- PRINT LAYOUT STYLES --- */
+@media print {
+  @page {
+    margin: 1cm;
+    size: A4 portrait;
+  }
+
+  /* Reset all backgrounds for printing */
+  body,
+  .dark body {
+    background: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+
+  /* Hide sidebar, topbar, buttons when printing */
+  aside,
+  nav,
+  header {
+    display: none !important;
+  }
+
+  /* Hide custom scrollbars */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+}

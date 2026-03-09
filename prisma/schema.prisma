@@ -254,3 +254,12 @@ model SystemSetting {
   value     String   // Stores JSON or text configurations
   updatedAt DateTime @updatedAt
 }
+
+model MrzScan {
+  id         String    @id @default(uuid())
+  userId     String    // Ties the scan to a specific user/staff member
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+  
+  rawJson    String    @db.Text // Will store the full JSON Array of objects
+}

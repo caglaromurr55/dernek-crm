@@ -21,9 +21,9 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { UserPlus, Camera, RefreshCw, HeartPulse, GraduationCap, X, Accessibility } from "lucide-react";
+import { UserPlus, Camera, RefreshCw, HeartPulse, GraduationCap, Accessibility, Save } from "lucide-react";
 import { addPersonAction } from "@/app/actions/household";
-import { MrzScanner } from "./MrzScanner";
+import { ExternalMrzScanner } from "./ExternalMrzScanner";
 import { toast } from "sonner";
 
 interface PersonAddModalProps {
@@ -32,7 +32,6 @@ interface PersonAddModalProps {
 
 export function PersonAddModal({ householdId }: PersonAddModalProps) {
     const [open, setOpen] = useState(false);
-    const [scannerOpen, setScannerOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -50,7 +49,9 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
         hasChronicIllness: false
     });
 
-    const handleScan = (data: any) => {
+    const handleScan = (dataArray: any[]) => {
+        if (!Array.isArray(dataArray) || dataArray.length === 0) return;
+        const data = dataArray[0];
         setFormData(prev => ({
             ...prev,
             firstName: data.firstName || prev.firstName,
@@ -58,7 +59,6 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
             identityNo: data.identityNo || prev.identityNo,
             birthDate: data.birthDate || prev.birthDate
         }));
-        setTimeout(() => setScannerOpen(false), 1500);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -100,27 +100,25 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
                         <UserPlus className="mr-2 h-4 w-4" /> Yeni Sakin Ekle
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md glass-card border-border/10 p-0 overflow-hidden shadow-2xl">
+                <DialogContent className="sm:max-w-[600px] glass-card border-border/10 p-0 overflow-hidden shadow-2xl z-50">
                     <div className="bg-emerald-600 p-6 text-white relative">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl font-black text-white">Hane Sakini Ekle</DialogTitle>
-                            <DialogDescription className="text-emerald-100 font-medium">
-                                Yeni bireyin bilgilerini girin veya kimlik taratın.
+                        <DialogHeader className="relative z-10">
+                            <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+                                <UserPlus className="w-5 h-5" />
+                                Hane Sakini Ekle
+                            </DialogTitle>
+                            <DialogDescription className="text-emerald-100 font-medium text-sm mt-1">
+                                Yeni bireyin temel bilgilerini girin veya kimlik kartını taratın.
                             </DialogDescription>
                         </DialogHeader>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                        <div className="flex justify-end">
-                            <Button
-                                type="button"
-                                onClick={() => setScannerOpen(true)}
-                                variant="outline"
-                                size="sm"
-                                className="text-xs bg-secondary border-muted-foreground/10 text-emerald-500 hover:bg-secondary/80 rounded-xl"
-                            >
-                                <Camera className="mr-2 h-3.5 w-3.5" /> Kimlik Kartı Tara (MRZ)
-                            </Button>
+                    <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-sm font-bold text-foreground">Kişisel Bilgiler</h3>
+                            <div className="flex items-center gap-2">
+                                <ExternalMrzScanner onScan={handleScan} />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -220,22 +218,14 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
                             </div>
                         </div>
 
-                        <DialogFooter className="pt-4 gap-2">
-                            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting} className="rounded-xl hover:bg-secondary">İptal</Button>
-                            <Button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 rounded-xl shadow-lg shadow-emerald-500/10 border-0">
-                                {isSubmitting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                {isSubmitting ? "Ekleniyor..." : "Haneye Sakin Ekle"}
+                        <DialogFooter className="pt-4 gap-2 border-t border-border mt-2">
+                            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting} className="rounded-md hover:bg-secondary w-full sm:w-auto">İptal</Button>
+                            <Button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 rounded-md shadow-md border-0 w-full sm:w-auto transition-all active:scale-95">
+                                {isSubmitting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                {isSubmitting ? "Ekleniyor..." : "Kaydet"}
                             </Button>
                         </DialogFooter>
                     </form>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 text-white border-zinc-800 p-0 overflow-hidden shadow-2xl">
-                    <DialogTitle className="sr-only">Kimlik Tarayıcı Kamera İzleme</DialogTitle>
-                    <DialogDescription className="sr-only">Lütfen kimliğinizin MRZ alanını kameraya okutun.</DialogDescription>
-                    <MrzScanner onScan={handleScan} onClose={() => setScannerOpen(false)} />
                 </DialogContent>
             </Dialog>
         </>

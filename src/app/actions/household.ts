@@ -243,6 +243,7 @@ export async function updateHouseholdAction(id: string, formData: FormData) {
         await createAuditLog("UPDATE", "HOUSEHOLD", id, { action: "Information Updated" });
 
         revalidatePath(`/haneler/${id}`);
+        revalidatePath(`/haneler/${id}/duzenle`);
         revalidatePath("/haneler");
         return { success: true };
     } catch (error) {
@@ -279,12 +280,52 @@ export async function addPersonAction(householdId: string, personData: any) {
         await createAuditLog("CREATE", "PERSON", householdId, { name: `${personData.firstName} ${personData.lastName}` });
 
         revalidatePath(`/haneler/${householdId}`);
+        revalidatePath(`/haneler/${householdId}/duzenle`);
         return { success: true };
     } catch (error) {
         console.error("Sakin ekleme hatası:", error);
         return { success: false, error: "Sakin eklenemedi. TC Kimlik No kayıtlı olabilir." };
     }
 }
+
+export async function updatePersonAction(householdId: string, personId: string, personData: any) {
+    const session = await auth();
+    if (!session) return { success: false, error: "Unauthorized" };
+
+    try {
+        await (prisma as any).person.update({
+            where: { id: personId, householdId },
+            data: {
+                firstName: personData.firstName,
+                lastName: personData.lastName,
+                identityNo: personData.identityNo, // Care with identityNo uniqueness constraint
+                birthDate: personData.birthDate ? new Date(personData.birthDate) : null,
+                gender: personData.gender || null,
+                educationalLevel: personData.educationalLevel || null,
+                maritalStatus: personData.maritalStatus || null,
+                employmentStatus: personData.employmentStatus || null,
+                monthlyIncome: personData.monthlyIncome ? parseInt(personData.monthlyIncome, 10) : 0,
+                isStudent: !!personData.isStudent,
+                isDisabled: !!personData.isDisabled,
+                hasChronicIllness: !!personData.hasChronicIllness
+            }
+        });
+
+        await recalculateHouseholdScore(householdId);
+        await createAuditLog("UPDATE", "PERSON", householdId, {
+            name: `${personData.firstName} ${personData.lastName}`,
+            personId
+        });
+
+        revalidatePath(`/haneler/${householdId}`);
+        revalidatePath(`/haneler/${householdId}/duzenle`);
+        return { success: true };
+    } catch (error) {
+        console.error("Sakin güncelleme hatası:", error);
+        return { success: false, error: "Sakin güncellenemedi. TC Kimlik No kayıtlı olabilir." };
+    }
+}
+
 
 export async function removePersonAction(householdId: string, personId: string) {
     const session = await auth();

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Search, MapPin, CheckCircle, Package, User, ShoppingCart, Trash2, Zap, Clock, AlertTriangle, Barcode } from "lucide-react";
 import { StandaloneScannerModal } from "@/components/StandaloneScannerModal";
-import { MrzScanner } from "@/components/MrzScanner";
+import { ExternalMrzScanner } from "@/components/ExternalMrzScanner";
 
 export default function BoutiquePOSPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -25,7 +25,6 @@ export default function BoutiquePOSPage() {
 
     const [submitting, setSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const [isMrzScannerOpen, setIsMrzScannerOpen] = useState(false);
 
     // Kasa input referansı
     const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +69,17 @@ export default function BoutiquePOSPage() {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, [searchQuery]);
+
+    const handleMrzScan = (dataArray: any[]) => {
+        if (!Array.isArray(dataArray) || dataArray.length === 0) return;
+        const data = dataArray[0];
+        if (data && data.identityNo) {
+            setSearchQuery(data.identityNo);
+            toast.success("Kimlik başarıyla eklendi!");
+        } else {
+            toast.error("Kimlikte geçerli bir TC no bulunamadı.");
+        }
+    };
 
     // Barkod okuyucu 
     const handleBarcodeSubmit = (e: React.FormEvent) => {
@@ -210,13 +220,7 @@ export default function BoutiquePOSPage() {
                                             )}
                                         </div>
                                         <div className="shrink-0 flex gap-2">
-                                            <Button
-                                                variant="outline"
-                                                className="h-12 w-12 p-0 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                                                onClick={() => setIsMrzScannerOpen(true)}
-                                            >
-                                                <Barcode className="w-5 h-5" />
-                                            </Button>
+                                            <ExternalMrzScanner onScan={handleMrzScan} className="h-12 border-emerald-200 text-emerald-600 hover:bg-emerald-50" />
                                         </div>
                                     </div>
                                     <div className="space-y-2 mt-4 max-h-[220px] overflow-y-auto pr-2">
@@ -430,34 +434,6 @@ export default function BoutiquePOSPage() {
                 title="Ürün Barkodu Oku"
                 description="Kamerayı ürün barkoduna sabitleyin. Algılanan barkod otomatik olarak sepete aktarılır."
             />
-
-            {isMrzScannerOpen && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-in-fade">
-                    <div className="bg-background w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl">
-                        <div className="p-4 border-b border-border flex justify-between items-center">
-                            <h3 className="font-bold">Kimlik / Barkod Tarayıcı</h3>
-                            <Button variant="ghost" size="sm" onClick={() => setIsMrzScannerOpen(false)}>Kapat</Button>
-                        </div>
-                        <div className="p-4">
-                            <MrzScanner
-                                onClose={() => setIsMrzScannerOpen(false)}
-                                onScan={(data: any) => {
-                                    if (data && data.identityNo) {
-                                        setSearchQuery(data.identityNo);
-                                        toast.success("Kimlik başarıyla okundu!");
-                                    } else {
-                                        toast.error("Kimlikte okunan geçerli bir TC no bulunamadı.");
-                                        if (typeof data === "string") {
-                                            setSearchQuery(data);
-                                        }
-                                    }
-                                    setIsMrzScannerOpen(false);
-                                }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

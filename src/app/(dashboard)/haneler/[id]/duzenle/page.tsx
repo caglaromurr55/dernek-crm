@@ -13,17 +13,20 @@ import {
     SelectValue
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Save, Home, Wallet, Info, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Home, Wallet, Info, FileText, CheckCircle2, Users, GraduationCap, HeartPulse } from "lucide-react";
 import Link from "next/link";
-import { updateHouseholdAction } from "@/app/actions/household";
+import { updateHouseholdAction, removePersonAction } from "@/app/actions/household";
 import { EditHouseholdSidebar } from "@/components/EditHouseholdSidebar";
+import { PersonEditModal } from "@/components/PersonEditModal";
+import { PersonAddModal } from "@/components/PersonAddModal";
+import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 
 export default async function HaneDuzenlePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const [householdData, neighborhoods] = await Promise.all([
-        prisma.household.findUnique({ where: { id } }),
+        prisma.household.findUnique({ where: { id }, include: { persons: true } }),
         (prisma as any).neighborhood.findMany({ orderBy: { name: "asc" } })
     ]);
     const household: any = householdData;
@@ -35,10 +38,11 @@ export default async function HaneDuzenlePage({ params }: { params: Promise<{ id
     const clarifyAddress = addressParts.length > 1 ? addressParts.slice(1).join(" - ") : household.address;
 
     const navItems = [
-        { id: "iletisim", label: "İletişim & Konum", icon: Home },
-        { id: "mali", label: "Mali Durum", icon: Wallet },
-        { id: "yasam_sartlari", label: "Ev & Yaşam Şartları", icon: Home },
-        { id: "degerlendirme", label: "Değerlendirme", icon: FileText },
+        { id: "sakinler", label: "Hane Sakinleri", icon: <Users className="w-4 h-4" /> },
+        { id: "iletisim", label: "İletişim & Konum", icon: <Home className="w-4 h-4" /> },
+        { id: "mali", label: "Mali Durum", icon: <Wallet className="w-4 h-4" /> },
+        { id: "yasam_sartlari", label: "Ev & Yaşam Şartları", icon: <Home className="w-4 h-4" /> },
+        { id: "degerlendirme", label: "Değerlendirme", icon: <FileText className="w-4 h-4" /> },
     ];
 
     return (
@@ -62,10 +66,56 @@ export default async function HaneDuzenlePage({ params }: { params: Promise<{ id
                 {/* FORM CONTENT */}
                 <div className="lg:col-span-9 space-y-12">
 
+                    {/* HANE SAKİNLERİ */}
+                    <div id="sakinler" className="scroll-mt-24">
+                        <div className="flex items-center justify-between mb-4 px-2">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">1</div>
+                                <h2 className="text-2xl font-black tracking-tight text-foreground">Hane Sakinleri</h2>
+                            </div>
+                            <PersonAddModal householdId={household.id} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {household.persons?.map((member: any) => (
+                                <Card key={member.id} className="glass-card hover-lift border-0 group relative overflow-hidden">
+                                    {member.isApplicant && <div className="absolute top-0 right-0 w-20 h-20 -mr-10 -mt-10 bg-emerald-500 transform rotate-45 pointer-events-none opacity-10"></div>}
+                                    <CardContent className="p-5">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex gap-4">
+                                                <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center text-muted-foreground shrink-0 group-hover:bg-emerald-50/10 group-hover:text-emerald-500 transition-colors">
+                                                    <Users className="h-6 w-6" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-bold text-foreground">{member.firstName} {member.lastName}</p>
+                                                        {member.isApplicant && <Badge className="bg-emerald-500/10 text-emerald-500 border-0 text-[10px] h-4">BAŞVURU SAHİBİ</Badge>}
+                                                    </div>
+                                                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                                                        TC: {member.identityNo} • {member.birthDate?.toLocaleDateString("tr-TR")} • {member.gender === 'KAD' ? 'Kadın' : member.gender === 'ERK' ? 'Erkek' : ''}
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground font-medium">
+                                                        {member.educationalLevel?.replace('_', ' ').toUpperCase()} • {member.employmentStatus?.replace('_', ' ').toUpperCase()} • {member.maritalStatus?.toUpperCase()} {member.monthlyIncome > 0 ? `• ${member.monthlyIncome}₺ Gelir` : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <PersonEditModal householdId={id} person={member} />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 mt-4 ml-16">
+                                            {member.isStudent && <Badge className="bg-blue-50 text-blue-700 border-blue-100 shadow-none text-[10px]"><GraduationCap className="w-3 h-3 mr-1" /> Öğrenci</Badge>}
+                                            {member.isDisabled && <Badge className="bg-red-50 text-red-700 border-red-100 shadow-none text-[10px]"><HeartPulse className="w-3 h-3 mr-1" /> Dezavantajlı</Badge>}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* İLETİŞİM & ADRES */}
                     <div id="iletisim" className="scroll-mt-24">
                         <div className="flex items-center gap-3 mb-4 px-2">
-                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">1</div>
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">2</div>
                             <h2 className="text-2xl font-black tracking-tight text-foreground">İletişim & Konum</h2>
                         </div>
                         <Card className="glass-card border-0 shadow-xl bg-card overflow-hidden">
@@ -101,7 +151,7 @@ export default async function HaneDuzenlePage({ params }: { params: Promise<{ id
                     {/* MALİ DURUM & GİDERLER */}
                     <div id="mali" className="scroll-mt-24">
                         <div className="flex items-center gap-3 mb-4 px-2">
-                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">2</div>
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">3</div>
                             <h2 className="text-2xl font-black tracking-tight text-foreground">Mali Durum & Gider Analizi</h2>
                         </div>
                         <Card className="glass-card border-0 shadow-xl overflow-hidden">
@@ -160,7 +210,7 @@ export default async function HaneDuzenlePage({ params }: { params: Promise<{ id
                     {/* EV & YAŞAM ŞARTLARI */}
                     <div id="yasam_sartlari" className="scroll-mt-24">
                         <div className="flex items-center gap-3 mb-4 px-2">
-                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">3</div>
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">4</div>
                             <h2 className="text-2xl font-black tracking-tight text-foreground">Ev & Yaşam Şartları</h2>
                         </div>
                         <Card className="glass-card border-0 shadow-xl bg-card overflow-hidden">
@@ -255,7 +305,7 @@ export default async function HaneDuzenlePage({ params }: { params: Promise<{ id
                     {/* DEĞERLENDİRME & NOTLAR */}
                     <div id="degerlendirme" className="scroll-mt-24">
                         <div className="flex items-center gap-3 mb-4 px-2">
-                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">4</div>
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs ring-4 ring-emerald-50">5</div>
                             <h2 className="text-2xl font-black tracking-tight text-foreground">Saha Tahkikat Değerlendirmesi</h2>
                         </div>
                         <Card className="glass-card border-0 shadow-xl overflow-hidden bg-card">

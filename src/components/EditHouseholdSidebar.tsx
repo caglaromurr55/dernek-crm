@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Info, Save } from "lucide-react";
 
 interface EditHouseholdSidebarProps {
-    navItems: { id: string; label: string; icon: any }[];
+    navItems: { id: string; label: string; icon: React.ReactNode }[];
 }
 
 export function EditHouseholdSidebar({ navItems }: EditHouseholdSidebarProps) {
@@ -68,7 +68,7 @@ export function EditHouseholdSidebar({ navItems }: EditHouseholdSidebarProps) {
                                 : "bg-transparent text-muted-foreground border-l-transparent hover:bg-secondary/50 hover:text-foreground"
                                 }`}
                         >
-                            <item.icon className="w-4 h-4" />
+                            {item.icon}
                             {item.label}
                         </button>
                     ))}

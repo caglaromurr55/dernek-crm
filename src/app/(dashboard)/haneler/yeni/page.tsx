@@ -24,7 +24,7 @@ import { ArrowLeft, Save, Camera, Users, Trash2, UserPlus, Home, Wallet, Info, F
 import Link from "next/link";
 import { createHouseholdAction } from "@/app/actions/household";
 import { getNeighborhoodsAction } from "@/app/actions/neighborhood";
-import { MrzScanner } from "@/components/MrzScanner";
+import { ExternalMrzScanner } from "@/components/ExternalMrzScanner";
 
 interface PersonFormData {
     id: string;
@@ -43,10 +43,6 @@ interface PersonFormData {
 }
 
 export default function YeniHaneEklePage() {
-    const [scannerOpen, setScannerOpen] = useState<{ open: boolean; targetId: string | "applicant" }>({
-        open: false,
-        targetId: "applicant"
-    });
 
     const [applicantData, setApplicantData] = useState({
         firstName: "",
@@ -97,32 +93,38 @@ export default function YeniHaneEklePage() {
         return () => scrollContainer.removeEventListener("scroll", handleScroll);
     }, [activeSection]);
 
-    // ... (handleScan unchanged)
-    const handleScan = (data: any) => {
-        if (scannerOpen.targetId === "applicant") {
-            setApplicantData(prev => ({
-                ...prev,
-                firstName: data.firstName || prev.firstName,
-                lastName: data.lastName || prev.lastName,
-                identityNo: data.identityNo || prev.identityNo,
-                birthDate: data.birthDate || prev.birthDate,
-                gender: data.gender || prev.gender || ""
+    const handleScan = (dataArray: any[]) => {
+        if (!Array.isArray(dataArray) || dataArray.length === 0) return;
+
+        const applicantScan = dataArray[0];
+        setApplicantData(prev => ({
+            ...prev,
+            firstName: applicantScan.firstName || prev.firstName,
+            lastName: applicantScan.lastName || prev.lastName,
+            identityNo: applicantScan.identityNo || prev.identityNo,
+            birthDate: applicantScan.birthDate || prev.birthDate,
+            gender: applicantScan.gender || prev.gender || ""
+        }));
+
+        if (dataArray.length > 1) {
+            const newMembers = dataArray.slice(1).map((scan, index) => ({
+                id: crypto.randomUUID(),
+                firstName: scan.firstName || "",
+                lastName: scan.lastName || "",
+                identityNo: scan.identityNo || "",
+                birthDate: scan.birthDate || "",
+                gender: scan.gender || "ERK",
+                educationalLevel: "ilkokul",
+                maritalStatus: "bekar",
+                employmentStatus: "issiz",
+                monthlyIncome: "0",
+                isStudent: false,
+                isDisabled: false,
+                hasChronicIllness: false
             }));
-        } else {
-            setOtherMembers(prev => prev.map(m =>
-                m.id === scannerOpen.targetId
-                    ? {
-                        ...m,
-                        firstName: data.firstName || m.firstName,
-                        lastName: data.lastName || m.lastName,
-                        identityNo: data.identityNo || m.identityNo,
-                        birthDate: data.birthDate || m.birthDate,
-                        gender: data.gender || m.gender
-                    }
-                    : m
-            ));
+
+            setOtherMembers(prev => [...prev, ...newMembers]);
         }
-        setTimeout(() => setScannerOpen({ open: false, targetId: "applicant" }), 1500);
     };
 
     const navItems = [
@@ -213,13 +215,7 @@ export default function YeniHaneEklePage() {
                         <Card className="glass-card border-0 shadow-xl overflow-hidden bg-card">
                             <CardHeader className="p-6 flex flex-row items-center justify-between border-b border-border/40 pb-5">
                                 <CardDescription className="text-sm">Vatandaşın T.C. Kimlik numarasını ve temel bilgilerini eksiksiz girin.</CardDescription>
-                                <Button
-                                    type="button"
-                                    onClick={() => setScannerOpen({ open: true, targetId: "applicant" })}
-                                    className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 h-10 px-4 transition-transform active:scale-95"
-                                >
-                                    <Camera className="mr-2 h-4 w-4" /> Kimlik Tara
-                                </Button>
+                                <ExternalMrzScanner onScan={handleScan} />
                             </CardHeader>
                             <CardContent className="p-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -321,7 +317,6 @@ export default function YeniHaneEklePage() {
                                                 <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase">#{idx + 1}</span>
                                             </div>
                                             <div className="flex gap-2">
-                                                <Button type="button" variant="outline" size="icon" className="h-8 w-8 text-emerald-600 hover:bg-emerald-100 border-emerald-200 bg-white shadow-sm" onClick={() => setScannerOpen({ open: true, targetId: member.id })}><Camera className="h-4 w-4" /></Button>
                                                 <Button type="button" variant="outline" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-100 border-red-200 bg-white shadow-sm" onClick={() => setOtherMembers(otherMembers.filter(m => m.id !== member.id))}><Trash2 className="h-4 w-4" /></Button>
                                             </div>
                                         </CardHeader>
@@ -633,14 +628,6 @@ export default function YeniHaneEklePage() {
                     </div>
                 </div>
             </form>
-
-            <Dialog open={scannerOpen.open} onOpenChange={(v) => setScannerOpen({ ...scannerOpen, open: v })}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 text-white border-zinc-800 p-0 overflow-hidden">
-                    <DialogTitle className="sr-only">Kimlik Tarayıcı Kamera İzleme</DialogTitle>
-                    <DialogDescription className="sr-only">Lütfen kimliğinizin MRZ alanını kameraya okutun.</DialogDescription>
-                    <MrzScanner onScan={handleScan} onClose={() => setScannerOpen({ open: false, targetId: "applicant" })} />
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
