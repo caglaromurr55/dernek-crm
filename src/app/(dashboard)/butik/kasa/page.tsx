@@ -180,9 +180,9 @@ export default function BoutiquePOSPage() {
                     </div>
                 </div>
                 {/* Hızlı Seçim Modu Göstergesi */}
-                <div className="hidden md:flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full border border-border text-xs text-muted-foreground">
-                    <Zap className="w-3.5 h-3.5 text-primary" />
-                    Barkod okuyucunuzu klavye modunda kullanabilirsiniz.
+                <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 md:py-1.5 rounded-xl md:rounded-full border border-border text-xs text-muted-foreground w-full md:w-auto">
+                    <Zap className="w-4 h-4 md:w-3.5 md:h-3.5 text-primary shrink-0" />
+                    <span className="leading-tight">Barkod okuyucunuzu klavye modunda kullanabilirsiniz.</span>
                 </div>
             </div>
 
@@ -199,15 +199,15 @@ export default function BoutiquePOSPage() {
                         <CardContent className="p-5">
                             {!selectedHousehold ? (
                                 <div className="space-y-4">
-                                    <div className="relative flex gap-2 w-full">
-                                        <div className="relative flex-1">
+                                    <div className="relative flex flex-col sm:flex-row gap-2 w-full">
+                                        <div className="relative flex-1 min-w-0">
                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                             <Input
                                                 ref={tcInputRef}
-                                                placeholder="TC Kimlik No veya İsim ile arayın..."
+                                                placeholder="TC Kimlik veya İsim..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="pl-9 bg-background text-lg h-12"
+                                                className="pl-9 bg-background text-base md:text-lg h-12 w-full"
                                                 autoFocus
                                             />
                                             {isSearching && (
@@ -217,10 +217,11 @@ export default function BoutiquePOSPage() {
                                         <div className="shrink-0 flex gap-2">
                                             <Button
                                                 variant="outline"
-                                                className="h-12 w-12 p-0 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                                                className="h-12 w-full sm:w-12 p-0 border-emerald-200 text-emerald-600 hover:bg-emerald-50 flex items-center justify-center gap-2"
                                                 onClick={() => setIsTcScannerOpen(true)}
                                             >
-                                                <Barcode className="w-5 h-5" />
+                                                <Barcode className="w-5 h-5 shrink-0" />
+                                                <span className="sm:hidden font-medium">Kamera ile Tara</span>
                                             </Button>
                                         </div>
                                     </div>
@@ -244,24 +245,24 @@ export default function BoutiquePOSPage() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex justify-between items-center p-4 rounded-lg bg-primary/5 border border-primary/20">
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 rounded-xl bg-primary/5 border border-primary/20 gap-4">
+                                    <div className="flex items-start md:items-center gap-4 w-full md:w-auto">
+                                        <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
                                             <User className="w-5 h-5 text-primary" />
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-foreground text-lg leading-tight">{selectedHousehold.name}</h3>
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="font-bold text-foreground text-base md:text-lg leading-tight truncate">{selectedHousehold.name}</h3>
                                             <p className="text-xs text-muted-foreground font-mono mt-0.5">{selectedHousehold.identityNo}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-right">
-                                            <p className="text-xs font-bold text-muted-foreground uppercase">Mevcut Bakiye</p>
-                                            <p className={`text-xl font-black ${householdBalance > 0 ? 'text-primary' : 'text-destructive'}`}>
-                                                {householdBalance} Parça/Kredi
+                                    <div className="flex flex-row md:flex-row items-center justify-between md:justify-end gap-4 w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-primary/10">
+                                        <div className="text-left md:text-right">
+                                            <p className="text-xs font-bold text-muted-foreground uppercase">Bakiye</p>
+                                            <p className={`text-lg md:text-xl font-black ${householdBalance > 0 ? 'text-primary' : 'text-destructive'}`}>
+                                                {householdBalance} <span className="text-sm md:text-xl">KP</span>
                                             </p>
                                         </div>
-                                        <Button variant="outline" size="sm" onClick={() => setSelectedHousehold(null)} className="h-8 hover:bg-muted">
+                                        <Button variant="outline" size="sm" onClick={() => setSelectedHousehold(null)} className="h-8 md:h-10 px-4 hover:bg-muted shrink-0">
                                             Değiştir
                                         </Button>
                                     </div>
@@ -280,20 +281,23 @@ export default function BoutiquePOSPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-5 space-y-4">
-                            <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
-                                <Input
-                                    ref={barcodeInputRef}
-                                    placeholder="Barkod okutun veya yazın..."
-                                    value={scannedBarcode}
-                                    onChange={e => setScannedBarcode(e.target.value)}
-                                    className="h-14 flex-1 text-center text-xl font-mono tracking-widest bg-background"
-                                />
+                            <form onSubmit={handleBarcodeSubmit} className="flex flex-col sm:flex-row gap-2 w-full">
+                                <div className="flex-1 min-w-0">
+                                    <Input
+                                        ref={barcodeInputRef}
+                                        placeholder="Barkod..."
+                                        value={scannedBarcode}
+                                        onChange={e => setScannedBarcode(e.target.value)}
+                                        className="h-14 w-full text-center text-lg md:text-xl font-mono tracking-widest bg-background"
+                                    />
+                                </div>
                                 <Button
                                     type="button"
                                     onClick={() => setIsScannerOpen(true)}
-                                    className="h-14 w-14 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                                    className="h-14 w-full sm:w-14 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shrink-0 flex items-center justify-center gap-2"
                                 >
-                                    <Barcode className="w-6 h-6" />
+                                    <Barcode className="w-6 h-6 shrink-0" />
+                                    <span className="sm:hidden font-medium">Tara</span>
                                 </Button>
                                 <button type="submit" className="hidden">Ekle</button>
                             </form>
