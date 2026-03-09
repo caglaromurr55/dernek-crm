@@ -28,13 +28,14 @@ export default function BoutiquePOSPage() {
 
     // Kasa input referansı
     const barcodeInputRef = useRef<HTMLInputElement>(null);
+    const tcInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         loadInventory();
         // Sayfa yüklendiğinde fokuslan
         setTimeout(() => {
-            if (barcodeInputRef.current) {
-                barcodeInputRef.current.focus();
+            if (tcInputRef.current) {
+                tcInputRef.current.focus();
             }
         }, 500);
     }, []);
@@ -202,10 +203,12 @@ export default function BoutiquePOSPage() {
                                         <div className="relative flex-1">
                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                             <Input
+                                                ref={tcInputRef}
                                                 placeholder="TC Kimlik No veya İsim ile arayın..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 className="pl-9 bg-background text-lg h-12"
+                                                autoFocus
                                             />
                                             {isSearching && (
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground animate-pulse">Aranıyor...</span>
@@ -284,7 +287,6 @@ export default function BoutiquePOSPage() {
                                     value={scannedBarcode}
                                     onChange={e => setScannedBarcode(e.target.value)}
                                     className="h-14 flex-1 text-center text-xl font-mono tracking-widest bg-background"
-                                    autoFocus
                                 />
                                 <Button
                                     type="button"
@@ -323,14 +325,14 @@ export default function BoutiquePOSPage() {
                             ) : (
                                 <div className="divide-y divide-border">
                                     {cart.map((item, idx) => (
-                                        <div key={item.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                        <div key={item.id} className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-muted/50 transition-colors">
                                             <div className="flex items-center gap-4">
-                                                <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground">
+                                                <div className="h-8 w-8 shrink-0 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground">
                                                     {idx + 1}
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-foreground text-lg">{item.name}</p>
-                                                    <div className="flex items-center gap-2 text-xs mt-1">
+                                                    <p className="font-bold text-foreground text-lg leading-tight">{item.name}</p>
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs mt-1">
                                                         <span className="text-muted-foreground font-mono">{item.barcode}</span>
                                                         <span className="text-muted-foreground">|</span>
                                                         <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded font-medium">{item.size}</span>
@@ -338,7 +340,7 @@ export default function BoutiquePOSPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-6">
+                                            <div className="flex items-center justify-between w-full md:w-auto md:justify-end gap-3 md:gap-6 mt-2 md:mt-0">
                                                 <div className="flex items-center gap-2 bg-secondary text-secondary-foreground p-1 rounded-lg border border-border">
                                                     <Button
                                                         variant="ghost"

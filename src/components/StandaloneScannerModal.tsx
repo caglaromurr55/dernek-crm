@@ -40,6 +40,11 @@ export function StandaloneScannerModal({
     const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastScannedCodeRef = useRef("");
     const lastScanTimeRef = useRef(0);
+    const onScanRef = useRef(onScan);
+
+    useEffect(() => {
+        onScanRef.current = onScan;
+    }, [onScan]);
 
     const playBeep = useCallback(() => {
         try {
@@ -139,7 +144,7 @@ export function StandaloneScannerModal({
                                 if (!continuous) stopCamera();
                                 playBeep();
                                 setStatusText("Başarılı! " + cleanText);
-                                onScan(cleanText);
+                                onScanRef.current(cleanText);
                             } else {
                                 setStatusText(`Hata: 11 hane bulunamadı. (${code})`);
                             }
@@ -147,7 +152,7 @@ export function StandaloneScannerModal({
                             if (!continuous) stopCamera();
                             playBeep();
                             setStatusText("Başarılı! " + code);
-                            onScan(code);
+                            onScanRef.current(code);
                         }
                     },
                     () => { } // Ignore continuous read errors
@@ -159,7 +164,7 @@ export function StandaloneScannerModal({
                 setIsScanning(false);
             }
         }, 300); // reduced timeout slightly, but using clear timeout to prevent double runs
-    }, [stopCamera, require11Digits, onScan]);
+    }, [stopCamera, require11Digits, continuous]);
 
     useEffect(() => {
         if (open) {

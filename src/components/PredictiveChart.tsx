@@ -86,7 +86,7 @@ export function PredictiveChart() {
                             <span className="text-xs font-bold text-muted-foreground uppercase">Geçen Aya Göre</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1.5 font-medium leading-relaxed max-w-sm">
-                            Algoritma sipariş hızındaki lineer ivmelenmeyi baz alarak tedbir amaçlı %10 stok marjı eklemiştir.
+                            Algoritma yardım dağıtım hızındaki lineer ivmelenmeyi baz alarak tedbir amaçlı %10 stok marjı eklemiştir.
                         </p>
                     </div>
                 </div>
