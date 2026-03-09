@@ -257,6 +257,20 @@ export async function addPersonAction(householdId: string, personData: any) {
     if (!session) return { success: false, error: "Unauthorized" };
 
     try {
+        if (personData.identityNo) {
+            const existingPerson = await prisma.person.findUnique({
+                where: { identityNo: personData.identityNo },
+                select: { id: true, firstName: true, lastName: true }
+            });
+
+            if (existingPerson) {
+                return {
+                    success: false,
+                    error: `Bu TC Kimlik Numarası sistemde kayıtlı: ${existingPerson.firstName} ${existingPerson.lastName}`
+                };
+            }
+        }
+
         await (prisma as any).person.create({
             data: {
                 householdId,
@@ -282,9 +296,9 @@ export async function addPersonAction(householdId: string, personData: any) {
         revalidatePath(`/haneler/${householdId}`);
         revalidatePath(`/haneler/${householdId}/duzenle`);
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Sakin ekleme hatası:", error);
-        return { success: false, error: "Sakin eklenemedi. TC Kimlik No kayıtlı olabilir." };
+        return { success: false, error: "Kayıt Hatası: " + (error?.message || "Bilinmeyen bir hata oluştu.") };
     }
 }
 
@@ -293,12 +307,27 @@ export async function updatePersonAction(householdId: string, personId: string, 
     if (!session) return { success: false, error: "Unauthorized" };
 
     try {
-        await (prisma as any).person.update({
-            where: { id: personId, householdId },
+        // Hata ayıklama: Gerçekten TC kimlik ile çelişen başka biri var mı kontrol et
+        if (personData.identityNo) {
+            const existingPerson = await prisma.person.findUnique({
+                where: { identityNo: personData.identityNo },
+                select: { id: true, firstName: true, lastName: true }
+            });
+
+            if (existingPerson && existingPerson.id !== personId) {
+                return {
+                    success: false,
+                    error: `Bu TC Kimlik Numarası başka bir kişi üzerine kayıtlı: ${existingPerson.firstName} ${existingPerson.lastName}`
+                };
+            }
+        }
+
+        await prisma.person.update({
+            where: { id: personId }, // householdId kaldırdık, sadece id benzersiz olması yeterli
             data: {
                 firstName: personData.firstName,
                 lastName: personData.lastName,
-                identityNo: personData.identityNo, // Care with identityNo uniqueness constraint
+                identityNo: personData.identityNo,
                 birthDate: personData.birthDate ? new Date(personData.birthDate) : null,
                 gender: personData.gender || null,
                 educationalLevel: personData.educationalLevel || null,
@@ -320,9 +349,9 @@ export async function updatePersonAction(householdId: string, personId: string, 
         revalidatePath(`/haneler/${householdId}`);
         revalidatePath(`/haneler/${householdId}/duzenle`);
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Sakin güncelleme hatası:", error);
-        return { success: false, error: "Sakin güncellenemedi. TC Kimlik No kayıtlı olabilir." };
+        return { success: false, error: "Veritabanı Kayıt Hatası: " + (error?.message || "Bilinmeyen bir hata oluştu.") };
     }
 }
 
