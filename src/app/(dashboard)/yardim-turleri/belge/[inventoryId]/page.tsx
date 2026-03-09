@@ -6,8 +6,8 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
-export default async function DocumentDeliveryPrintView({ params }: { params: { inventoryId: string } }) {
-    const { inventoryId } = params;
+export default async function DocumentDeliveryPrintView({ params }: { params: Promise<{ inventoryId: string }> }) {
+    const { inventoryId } = await params;
 
     const inventory = await (prisma as any).inventory.findUnique({
         where: { id: inventoryId },
