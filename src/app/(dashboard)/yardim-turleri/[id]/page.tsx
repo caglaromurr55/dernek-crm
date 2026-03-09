@@ -127,47 +127,49 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader className="bg-secondary/50">
-                                <TableRow>
-                                    <TableHead className="pl-6">Tarih</TableHead>
-                                    <TableHead>İşlem Türü</TableHead>
-                                    <TableHead className="text-center">Miktar</TableHead>
-                                    <TableHead>Açıklama / Kaynak</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {item.inventories.length === 0 ? (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader className="bg-secondary/50">
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                                            Henüz bir stok hareketi kaydedilmemiş.
-                                        </TableCell>
+                                        <TableHead className="pl-6">Tarih</TableHead>
+                                        <TableHead>İşlem Türü</TableHead>
+                                        <TableHead className="text-center">Miktar</TableHead>
+                                        <TableHead>Açıklama / Kaynak</TableHead>
                                     </TableRow>
-                                ) : (
-                                    item.inventories.map((inv: any) => (
-                                        <TableRow key={inv.id} className="hover:bg-secondary/50">
-                                            <TableCell className="pl-6 text-muted-foreground whitespace-nowrap">
-                                                {inv.createdAt.toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={inv.type === "IN" ? "secondary" : "destructive"}
-                                                    className={inv.type === "IN" ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "bg-rose-100 text-rose-800 hover:bg-rose-200"}
-                                                >
-                                                    {inv.type === "IN" ? "GİRİŞ" : "ÇIKIŞ"}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-center font-bold font-mono">
-                                                {inv.type === "IN" ? "+" : "-"}{inv.quantity}
-                                            </TableCell>
-                                            <TableCell className="max-w-[200px] truncate" title={inv.reason || "-"}>
-                                                {inv.reason || "-"}
+                                </TableHeader>
+                                <TableBody>
+                                    {item.inventories.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                                                Henüz bir stok hareketi kaydedilmemiş.
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : (
+                                        item.inventories.map((inv: any) => (
+                                            <TableRow key={inv.id} className="hover:bg-secondary/50">
+                                                <TableCell className="pl-6 text-muted-foreground whitespace-nowrap">
+                                                    {inv.createdAt.toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant={inv.type === "IN" ? "secondary" : "destructive"}
+                                                        className={inv.type === "IN" ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "bg-rose-100 text-rose-800 hover:bg-rose-200"}
+                                                    >
+                                                        {inv.type === "IN" ? "GİRİŞ" : "ÇIKIŞ"}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-center font-bold font-mono">
+                                                    {inv.type === "IN" ? "+" : "-"}{inv.quantity}
+                                                </TableCell>
+                                                <TableCell className="max-w-[200px] truncate" title={inv.reason || "-"}>
+                                                    {inv.reason || "-"}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

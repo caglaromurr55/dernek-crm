@@ -110,72 +110,74 @@ export default async function ListeDetayPage({ params }: { params: Promise<{ id:
             </div>
 
             <div className="glass-card rounded-3xl shadow-2xl border-0 overflow-hidden">
-                <Table>
-                    <TableHeader className="bg-secondary/50">
-                        <TableRow className="hover:bg-transparent border-border">
-                            <TableHead className="font-bold text-muted-foreground py-5 pl-8">HANE / BAŞVURU SAHİBİ</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5">ADRES & KONUM</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-center">İLETİŞİM</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-center">SKOR</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">DURUM / AKSİYON</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {list.deliveries.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-20 opacity-30">
-                                    <p className="font-bold text-lg">Bu listede hane bulunmuyor.</p>
-                                </TableCell>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader className="bg-secondary/50">
+                            <TableRow className="hover:bg-transparent border-border">
+                                <TableHead className="font-bold text-muted-foreground py-5 pl-8">HANE / BAŞVURU SAHİBİ</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5">ADRES & KONUM</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-center">İLETİŞİM</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-center">SKOR</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">DURUM / AKSİYON</TableHead>
                             </TableRow>
-                        ) : (
-                            list.deliveries.map((delivery: any) => {
-                                const applicant = delivery.household.persons[0];
-                                return (
-                                    <TableRow key={delivery.id} className="group hover:bg-secondary/50 transition-all border-border/50">
-                                        <TableCell className="py-6 pl-8">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                                                    <UserIcon className="w-5 h-5" />
+                        </TableHeader>
+                        <TableBody>
+                            {list.deliveries.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-20 opacity-30">
+                                        <p className="font-bold text-lg">Bu listede hane bulunmuyor.</p>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                list.deliveries.map((delivery: any) => {
+                                    const applicant = delivery.household.persons[0];
+                                    return (
+                                        <TableRow key={delivery.id} className="group hover:bg-secondary/50 transition-all border-border/50">
+                                            <TableCell className="py-6 pl-8">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                                        <UserIcon className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-foreground uppercase tracking-tighter">
+                                                            {applicant ? `${applicant.firstName} ${applicant.lastName}` : "Bilinmiyor"}
+                                                        </p>
+                                                        <p className="text-[10px] font-bold text-muted-foreground">TC: {applicant?.identityNo || "-"}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-black text-foreground uppercase tracking-tighter">
-                                                        {applicant ? `${applicant.firstName} ${applicant.lastName}` : "Bilinmiyor"}
+                                            </TableCell>
+                                            <TableCell className="max-w-[300px]">
+                                                <div className="flex items-start gap-2">
+                                                    <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                                    <p className="text-xs font-bold text-zinc-600 line-clamp-2" title={delivery.household.address}>
+                                                        {delivery.household.address}
                                                     </p>
-                                                    <p className="text-[10px] font-bold text-muted-foreground">TC: {applicant?.identityNo || "-"}</p>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="max-w-[300px]">
-                                            <div className="flex items-start gap-2">
-                                                <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                                <p className="text-xs font-bold text-zinc-600 line-clamp-2" title={delivery.household.address}>
-                                                    {delivery.household.address}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="flex items-center justify-center gap-1.5 font-black text-xs text-zinc-500 bg-secondary/30 py-1.5 px-3 rounded-xl border border-border/50">
-                                                <Phone className="w-3.5 h-3.5" />
-                                                {delivery.household.contactNumber || "-"}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-zinc-900 text-white font-black text-[10px] shadow-lg">
-                                                {delivery.household.score}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right pr-8">
-                                            <DeliveryStatusButton
-                                                deliveryId={delivery.id}
-                                                currentStatus={delivery.status}
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        )}
-                    </TableBody>
-                </Table>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <div className="flex items-center justify-center gap-1.5 font-black text-xs text-zinc-500 bg-secondary/30 py-1.5 px-3 rounded-xl border border-border/50">
+                                                    <Phone className="w-3.5 h-3.5" />
+                                                    {delivery.household.contactNumber || "-"}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-zinc-900 text-white font-black text-[10px] shadow-lg">
+                                                    {delivery.household.score}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right pr-8">
+                                                <DeliveryStatusButton
+                                                    deliveryId={delivery.id}
+                                                    currentStatus={delivery.status}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
 
             {/* Field Mode Indicator */}

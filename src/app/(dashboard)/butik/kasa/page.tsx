@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Search, MapPin, CheckCircle, Package, User, ShoppingCart, Trash2, Zap, Clock, AlertTriangle, Barcode } from "lucide-react";
 import { StandaloneScannerModal } from "@/components/StandaloneScannerModal";
-import { ExternalMrzScanner } from "@/components/ExternalMrzScanner";
 
 export default function BoutiquePOSPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -25,6 +24,7 @@ export default function BoutiquePOSPage() {
 
     const [submitting, setSubmitting] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [isTcScannerOpen, setIsTcScannerOpen] = useState(false);
 
     // Kasa input referansı
     const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -70,21 +70,8 @@ export default function BoutiquePOSPage() {
         };
     }, [searchQuery]);
 
-    const handleMrzScan = (dataArray: any[]) => {
-        if (!Array.isArray(dataArray) || dataArray.length === 0) return;
-        const data = dataArray[0];
-        if (data && data.identityNo) {
-            setSearchQuery(data.identityNo);
-            toast.success("Kimlik başarıyla eklendi!");
-        } else {
-            toast.error("Kimlikte geçerli bir TC no bulunamadı.");
-        }
-    };
-
     // Barkod okuyucu 
-    const handleBarcodeSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const code = scannedBarcode.trim();
+    const handleBarcodeSubmitInternal = (code: string) => {
         if (!code) return;
 
         // Ürünü envanterde bul
@@ -119,6 +106,11 @@ export default function BoutiquePOSPage() {
 
         toast.success(`${item.name} sepete eklendi.`);
         setScannedBarcode("");
+    };
+
+    const handleBarcodeSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        handleBarcodeSubmitInternal(scannedBarcode.trim());
     };
 
     const removeFromCart = (id: string) => {
@@ -220,7 +212,13 @@ export default function BoutiquePOSPage() {
                                             )}
                                         </div>
                                         <div className="shrink-0 flex gap-2">
-                                            <ExternalMrzScanner onScan={handleMrzScan} className="h-12 border-emerald-200 text-emerald-600 hover:bg-emerald-50" />
+                                            <Button
+                                                variant="outline"
+                                                className="h-12 w-12 p-0 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                                                onClick={() => setIsTcScannerOpen(true)}
+                                            >
+                                                <Barcode className="w-5 h-5" />
+                                            </Button>
                                         </div>
                                     </div>
                                     <div className="space-y-2 mt-4 max-h-[220px] overflow-y-auto pr-2">
@@ -421,18 +419,24 @@ export default function BoutiquePOSPage() {
             <StandaloneScannerModal
                 open={isScannerOpen}
                 onClose={() => setIsScannerOpen(false)}
+                continuous={true}
                 onScan={(code) => {
-                    setScannedBarcode(code);
-                    setIsScannerOpen(false);
-                    // Use timeout to allow state to settle before form submission behavior
-                    setTimeout(() => {
-                        const evt = { preventDefault: () => { } } as React.FormEvent;
-                        handleBarcodeSubmit(evt); // Use the existing handler to act like hitting ENTER
-                        toast.info("Barkod algılandı, sepet kontrol ediliyor...");
-                    }, 200);
+                    handleBarcodeSubmitInternal(code);
                 }}
                 title="Ürün Barkodu Oku"
-                description="Kamerayı ürün barkoduna sabitleyin. Algılanan barkod otomatik olarak sepete aktarılır."
+                description="Kamerayı ürün barkoduna sabitleyin. Algılanan barkod otomatik olarak sepete aktarılır. Arama penceresi kapanmaz, arka arkaya ürün okutabilirsiniz."
+            />
+
+            <StandaloneScannerModal
+                open={isTcScannerOpen}
+                onClose={() => setIsTcScannerOpen(false)}
+                require11Digits={true}
+                onScan={(code) => {
+                    setSearchQuery(code);
+                    toast.success("TC başarıyla okundu!");
+                }}
+                title="TC Kimlik Okuyucu"
+                description="Fiziksel kimlik kartındaki barkodu kameraya okutun."
             />
         </div>
     );

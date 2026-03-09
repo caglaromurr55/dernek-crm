@@ -20,6 +20,7 @@ interface StandaloneScannerModalProps {
     title?: string;
     description?: string;
     require11Digits?: boolean;
+    continuous?: boolean;
 }
 
 export function StandaloneScannerModal({
@@ -28,7 +29,8 @@ export function StandaloneScannerModal({
     onScan,
     title = "Barkod Okuyucu",
     description = "Cihaz kamerasını kullanarak fiziksel barkodları sisteme okutun.",
-    require11Digits = false
+    require11Digits = false,
+    continuous = false
 }: StandaloneScannerModalProps) {
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const [statusText, setStatusText] = useState("Kamera başlatılıyor...");
@@ -36,6 +38,26 @@ export function StandaloneScannerModal({
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [isFlashOn, setIsFlashOn] = useState(false);
     const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastScannedCodeRef = useRef("");
+    const lastScanTimeRef = useRef(0);
+
+    const playBeep = useCallback(() => {
+        try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.15);
+            osc.stop(ctx.currentTime + 0.15);
+        } catch (e) {
+            console.error("Audio beep error:", e);
+        }
+    }, []);
 
     const toggleFlash = useCallback(async () => {
         const scanner = html5QrCodeRef.current;
@@ -104,17 +126,28 @@ export function StandaloneScannerModal({
                     { facingMode: "environment" },
                     config,
                     (decodedText) => {
+                        const code = decodedText.trim();
+                        if (continuous && lastScannedCodeRef.current === code && (Date.now() - lastScanTimeRef.current < 1500)) {
+                            return; // Yineliyen okumayı 1.5 sn engelle
+                        }
+                        lastScannedCodeRef.current = code;
+                        lastScanTimeRef.current = Date.now();
+
                         if (require11Digits) {
-                            const cleanText = decodedText.trim().replace(/\D/g, '');
+                            const cleanText = code.replace(/\D/g, '');
                             if (cleanText.length === 11) {
-                                stopCamera();
+                                if (!continuous) stopCamera();
+                                playBeep();
+                                setStatusText("Başarılı! " + cleanText);
                                 onScan(cleanText);
                             } else {
-                                setStatusText(`Hata: 11 hane bulunamadı. (${decodedText})`);
+                                setStatusText(`Hata: 11 hane bulunamadı. (${code})`);
                             }
                         } else {
-                            stopCamera();
-                            onScan(decodedText.trim());
+                            if (!continuous) stopCamera();
+                            playBeep();
+                            setStatusText("Başarılı! " + code);
+                            onScan(code);
                         }
                     },
                     () => { } // Ignore continuous read errors
