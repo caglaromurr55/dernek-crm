@@ -63,7 +63,7 @@ export function PredictiveChart() {
                     </div>
                     {trend > 20 && (
                         <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 shadow-sm animate-pulse-subtle">
-                            <AlertCircle className="w-3 h-3 mr-1" /> Yoğun Ay Bekleniyor
+                            <AlertCircle className="w-3 h-3 mr-1" /> Normal Ay Bekleniyor
                         </Badge>
                     )}
                 </div>
