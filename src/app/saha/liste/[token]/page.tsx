@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { claimDistributionListAction } from "@/app/actions/volunteer";
 import { VolunteerDeliveryCard } from "./VolunteerDeliveryCard";
+import { VolunteerLoginForm } from "./VolunteerLoginForm";
 
 export default async function SahaPublicListPage({ params }: { params: Promise<{ token: string }> }) {
     const { token } = await params;
@@ -49,20 +50,7 @@ export default async function SahaPublicListPage({ params }: { params: Promise<{
                         <p className="text-emerald-50/80 text-sm mt-1 font-medium">Bu listeyi üstlenmek için bilgilerinizi girin.</p>
                     </div>
                     <CardContent className="p-8 pt-10">
-                        <form action={async (formData) => { "use server"; await claimDistributionListAction(formData); }} className="space-y-6">
-                            <input type="hidden" name="token" value={token} />
-                            <div className="space-y-2">
-                                <Label htmlFor="name" className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Ad Soyad</Label>
-                                <Input id="name" name="name" placeholder="Örn: Ahmet Yılmaz" required className="h-12 bg-zinc-50 border-0 rounded-xl" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone" className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Telefon Numarası</Label>
-                                <Input id="phone" name="phone" type="tel" placeholder="05xx xxx xx xx" required className="h-12 bg-zinc-50 border-0 rounded-xl" />
-                            </div>
-                            <Button type="submit" className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-lg shadow-emerald-500/20 text-lg uppercase tracking-tight">
-                                GÖREVİ ÜSTLEN
-                            </Button>
-                        </form>
+                        <VolunteerLoginForm token={token} />
                     </CardContent>
                     <CardFooter className="bg-zinc-50 p-6 border-t border-zinc-100 italic text-zinc-400 text-[10px] text-center">
                         Girdiğiniz bilgiler otomatik olarak gönüllü sistemine kaydedilecek ve bu liste telefonunuza zimmetlenecektir.
