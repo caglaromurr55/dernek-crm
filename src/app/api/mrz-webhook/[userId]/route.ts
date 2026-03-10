@@ -5,38 +5,59 @@ export async function POST(req: Request, { params }: { params: Promise<{ userId:
     try {
         const { userId } = await params;
         let body: any;
+        let rawText = "";
 
         try {
-            const tempBodyText = await req.text();
-
-            if (!tempBodyText) {
+            rawText = await req.text();
+            if (!rawText) {
                 return NextResponse.json({ error: "Empty payload received" }, { status: 400 });
             }
 
+            console.log(`[Webhook] Raw Payload from ${userId}:`, rawText);
+
+            // Attempt to parse JSON
             try {
-                body = JSON.parse(tempBodyText);
+                body = JSON.parse(rawText);
             } catch (e) {
-                // If pure JSON parse fails, try checking if it's form-data or other encoding but generally throw
-                console.error("Failed to parse JSON:", tempBodyText);
-                return NextResponse.json({ error: "Invalid JSON format in payload." }, { status: 400 });
+                // Fallback to URL-Encoded Form Data
+                if (rawText.includes("=") && !rawText.trim().startsWith("{") && !rawText.trim().startsWith("[")) {
+                    const urlParams = new URLSearchParams(rawText);
+                    body = Object.fromEntries(urlParams.entries());
+                } else {
+                    // Force wrap into an object if it's some other string
+                    body = { rawData: rawText };
+                }
             }
         } catch (e) {
             console.error("Error reading request text:", e);
             return NextResponse.json({ error: "Could not read request body" }, { status: 400 });
         }
 
-        // Sometimes webhook tools send a nested struct { data: [...] } or a single object {...}
-        if (body && typeof body === 'object' && !Array.isArray(body)) {
-            if (Array.isArray(body.data)) {
-                body = body.data;
-            } else {
-                body = [body];
+        // Sometimes webhook tools send a stringified JSON inside a property
+        if (typeof body === 'object' && body !== null) {
+            for (let key in body) {
+                if (typeof body[key] === 'string' && (body[key].startsWith('[') || body[key].startsWith('{'))) {
+                    try {
+                        body[key] = JSON.parse(body[key]);
+                    } catch (e) { } // Ignore parse failures on inner strings
+                }
             }
         }
 
-        // Ensure body is now an array
-        if (!Array.isArray(body) || body.length === 0) {
-            return NextResponse.json({ error: "Invalid payload format. Expected an array." }, { status: 400 });
+        // Normalize body into an Array format
+        if (body && typeof body === 'object' && !Array.isArray(body)) {
+            // Check common wrappers used by N8N or mobile apps
+            if (body.data && Array.isArray(body.data)) {
+                body = body.data;
+            } else if (body.body && Array.isArray(body.body)) {
+                body = body.body;
+            } else if (body.results && Array.isArray(body.results)) {
+                body = body.results;
+            } else {
+                body = [body];
+            }
+        } else if (!body || typeof body !== 'object') {
+            body = [{ rawValue: body }];
         }
 
         // Save the raw array to DB tied to the user

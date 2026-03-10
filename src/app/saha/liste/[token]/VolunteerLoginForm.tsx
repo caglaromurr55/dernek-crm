@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { claimDistributionListAction } from "@/app/actions/volunteer";
+import { useRouter } from "next/navigation";
 
 export function VolunteerLoginForm({ token }: { token: string }) {
+    const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -21,7 +23,7 @@ export function VolunteerLoginForm({ token }: { token: string }) {
                 toast.error(res.message || "Giriş yapılamadı.");
             } else {
                 toast.success("Görev başarıyla üstlenildi!");
-                // Let Next.js revalidate and refresh the page automatically now
+                router.refresh();
             }
         } catch (error) {
             toast.error("Bir ağ hatası oluştu. Lütfen tekrar deneyin.");
