@@ -33,14 +33,17 @@ const queueGeocode = async (address: string): Promise<[number, number] | null> =
     }
     
     // Clean address helper to strip extreme details (like Daire, No, Kat, Blok) which Nominatim hates
-    // For "Çınar Mahallesi - İhlas Evleri B11 Daire 11", this helps get just "Çınar Mahallesi"
+    // For "Çınar Mahallesi, Gül Sokak, İhlas Evleri B11 Blok Daire 11", this helps get just "Çınar Mahallesi, Gül Sokak"
     const getCleanFallback = (addr: string) => {
-        // usually Neighborhood is before a dash or comma
-        const parts = addr.split(/[-,\r\n]/);
-        if (parts.length > 1 && parts[0].trim().length > 5) {
-            return parts[0].trim();
+        // Regex to remove common Turkish apartment/door number modifiers
+        let cleaned = addr.replace(/(no\s*:?\s*\d+([a-z])?|daire\s*:?\s*\d+|kat\s*:?\s*\d+|blok\s*:?\s*[a-z0-9]+|b11|i̇hlas evleri)/gi, '');
+        // Also split by common delimiters and take up to the street/avenue
+        const parts = cleaned.split(/[-,\r\n]/);
+        if (parts.length > 1) {
+            // Keep up to 2 parts (Mahalle + Sokak typically)
+            return parts.slice(0, 2).join(", ").trim();
         }
-        return addr.split(" ").slice(0, 3).join(" "); // first 3 words
+        return cleaned.split(" ").slice(0, 4).join(" ").trim(); // first 4 words
     };
 
     return new Promise((resolve) => {
