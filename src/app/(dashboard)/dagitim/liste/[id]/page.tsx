@@ -180,15 +180,6 @@ export default async function ListeDetayPage({ params }: { params: Promise<{ id:
                 </div>
             </div>
 
-            {/* Field Mode Indicator */}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-                <div className="bg-zinc-900 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 animate-in-slide-up">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <p className="text-sm font-black uppercase tracking-widest">Saha Takip Modu Aktif</p>
-                    <div className="w-px h-6 bg-zinc-700"></div>
-                    <p className="text-xs font-bold text-zinc-400">Anlık durum güncellemeleri açık.</p>
-                </div>
-            </div>
         </div>
     );
 }

@@ -105,12 +105,20 @@ export default async function DagitimDetayPage({ params }: { params: Promise<{ i
             </div>
 
             <div className="space-y-4">
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1">
                         <h2 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
                             DAĞITIM LİSTELERİ
                         </h2>
                         <p className="text-muted-foreground text-sm font-medium">Bu kampanya kapsamında oluşturulan alt çalışma listeleri.</p>
+                    </div>
+                    
+                    {/* Field Mode Indicator */}
+                    <div className="bg-zinc-900 text-white px-5 py-3 rounded-2xl shadow-lg flex items-center gap-3 w-fit shrink-0">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <p className="text-xs font-black uppercase tracking-widest">Saha Takip Modu Aktif</p>
+                        <div className="w-px h-4 bg-zinc-700"></div>
+                        <p className="text-[10px] font-bold text-zinc-400">Anlık durum güncellemeleri açık.</p>
                     </div>
                 </div>
 
@@ -180,15 +188,6 @@ export default async function DagitimDetayPage({ params }: { params: Promise<{ i
                 </div>
             </div>
 
-            {/* Field Mode Indicator */}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-                <div className="bg-zinc-900 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 animate-in-slide-up">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <p className="text-sm font-black uppercase tracking-widest">Saha Takip Modu Aktif</p>
-                    <div className="w-px h-6 bg-zinc-700"></div>
-                    <p className="text-xs font-bold text-zinc-400">Anlık durum güncellemeleri açık.</p>
-                </div>
-            </div>
         </div>
     );
 }
