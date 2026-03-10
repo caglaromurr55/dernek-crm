@@ -35,8 +35,14 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
     const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Saha verisi (Hane genel)
-    const [currentAddress, setCurrentAddress] = useState(delivery.household.address || "");
     const [currentPhone, setCurrentPhone] = useState(delivery.household.contactNumber || "");
+    const [updateMahalle, setUpdateMahalle] = useState(delivery.household.mahalle || "");
+    const [updateSokak, setUpdateSokak] = useState(delivery.household.sokak || "");
+    const [updateBinaNo, setUpdateBinaNo] = useState(delivery.household.binaNo || "");
+    const [updateKat, setUpdateKat] = useState(delivery.household.kat || "");
+    const [updateDaire, setUpdateDaire] = useState(delivery.household.daire || "");
+    const [updateAddressDetail, setUpdateAddressDetail] = useState(delivery.household.addressDetail || "");
+    const [currentAddress, setCurrentAddress] = useState(delivery.household.address || ""); // Yalnızca read-only yedek gösterim için veya fallback
     const [notes, setNotes] = useState(""); // teslimat notu
 
     // Sorun Bildirimi
@@ -203,7 +209,12 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
         formData.append("firstName", updateFirstName);
         formData.append("lastName", updateLastName);
         formData.append("phone", currentPhone);
-        formData.append("address", currentAddress);
+        formData.append("mahalle", updateMahalle);
+        formData.append("sokak", updateSokak);
+        formData.append("binaNo", updateBinaNo);
+        formData.append("kat", updateKat);
+        formData.append("daire", updateDaire);
+        formData.append("addressDetail", updateAddressDetail);
 
         try {
             const res = await updateHouseholdFieldInfoAction(formData);
@@ -516,9 +527,35 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
                                     <Input value={currentPhone} onChange={e => setCurrentPhone(e.target.value)} type="tel" className="h-14 bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 font-mono font-bold focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] transition-all" />
                                 </div>
 
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2.5">
+                                        <Label className="text-[13px] font-semibold text-zinc-600 block pl-1">Mahalle</Label>
+                                        <Input value={updateMahalle} onChange={e => setUpdateMahalle(e.target.value)} className="h-14 bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 font-medium focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] transition-all" />
+                                    </div>
+                                    <div className="space-y-2.5">
+                                        <Label className="text-[13px] font-semibold text-zinc-600 block pl-1">Sokak / Cadde</Label>
+                                        <Input value={updateSokak} onChange={e => setUpdateSokak(e.target.value)} className="h-14 bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 font-medium focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] transition-all" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-2.5">
+                                        <Label className="text-[13px] font-semibold text-zinc-600 block pl-1">Bina</Label>
+                                        <Input value={updateBinaNo} onChange={e => setUpdateBinaNo(e.target.value)} className="h-14 bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 font-medium focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] transition-all" />
+                                    </div>
+                                    <div className="space-y-2.5">
+                                        <Label className="text-[13px] font-semibold text-zinc-600 block pl-1">Kat</Label>
+                                        <Input value={updateKat} onChange={e => setUpdateKat(e.target.value)} className="h-14 bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 font-medium focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] transition-all" />
+                                    </div>
+                                    <div className="space-y-2.5">
+                                        <Label className="text-[13px] font-semibold text-zinc-600 block pl-1">Daire</Label>
+                                        <Input value={updateDaire} onChange={e => setUpdateDaire(e.target.value)} className="h-14 bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 font-medium focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] transition-all" />
+                                    </div>
+                                </div>
+
                                 <div className="space-y-2.5">
-                                    <Label className="text-[13px] font-semibold text-zinc-600 block pl-1">Detaylı Adres</Label>
-                                    <Textarea value={currentAddress} onChange={e => setCurrentAddress(e.target.value)} className="bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 py-3 font-medium focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] resize-none min-h-[100px] transition-all" />
+                                    <Label className="text-[13px] font-semibold text-zinc-600 block pl-1">Adres Detayı / Tarif</Label>
+                                    <Input value={updateAddressDetail} onChange={e => setUpdateAddressDetail(e.target.value)} placeholder="Şok marketin yanı, B11 Blok" className="h-14 bg-white border border-black/[0.05] shadow-sm rounded-[16px] px-4 font-medium focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-[15px] transition-all" />
                                 </div>
 
                                 <div className="flex gap-4 pt-4 border-t border-black/[0.05]">

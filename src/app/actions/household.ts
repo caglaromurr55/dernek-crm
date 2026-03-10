@@ -12,8 +12,15 @@ export async function createHouseholdAction(formData: FormData) {
     if (!session) throw new Error("Unauthorized");
 
     const mahalle = formData.get("mahalle") as string;
+    const sokak = formData.get("sokak") as string;
+    const binaNo = formData.get("binaNo") as string;
+    const kat = formData.get("kat") as string;
+    const daire = formData.get("daire") as string;
+    const addressDetail = formData.get("addressDetail") as string;
     const telefon = formData.get("telefon") as string;
-    const adres = formData.get("adres") as string;
+    
+    // Legacy tam adres derlemesi
+    const adres = `${mahalle || ""} ${sokak || ""}, Bina: ${binaNo || "-"}, Kat: ${kat || "-"}, Daire: ${daire || "-"} ${addressDetail ? `(${addressDetail})` : ""}`;
 
     // Sosyo-Ekonomik Veriler
     const rentStatus = formData.get("kira") as string;
@@ -75,7 +82,13 @@ export async function createHouseholdAction(formData: FormData) {
         const newHousehold = await (prisma as any).$transaction(async (tx: any) => {
             const hane = await tx.household.create({
                 data: {
-                    address: `${mahalle} - ${adres}`,
+                    address: adres.trim(),
+                    mahalle,
+                    sokak,
+                    binaNo,
+                    kat,
+                    daire,
+                    addressDetail,
                     contactNumber: telefon,
                     status: "PENDING",
                     score: 0,

@@ -21,7 +21,14 @@ model User {
 
 model Household {
   id                 String     @id @default(uuid())
-  address            String
+  address            String     // Orijinal full/compiled address (Geriye Dönük Uyumluluk için tutulur)
+  mahalle            String?
+  sokak              String?
+  binaNo             String?
+  kat                String?
+  daire              String?
+  addressDetail      String?
+  
   contactNumber      String?
   score              Int?       @default(0)
   status             String     @default("PENDING")

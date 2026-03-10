@@ -432,12 +432,43 @@ export default function YeniHaneEklePage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="p-6 md:p-8 space-y-3 md:col-span-2">
-                                    <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-10 md:mt-0 block">DETAYLI AÇIK ADRES</Label>
-                                    <Input name="adres" placeholder="Örn: Bahar Sokak, Gül Apt, No: 12, Daire: 4" required className="bg-secondary/20 h-12 text-sm border-border w-full" />
-                                    <div className="pt-4">
-                                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-3">İLETİŞİM TELEFONU</Label>
-                                        <Input name="telefon" placeholder="05XX XXX XX XX" required className="bg-secondary/20 h-12 text-sm border-border md:w-1/2" />
+                                <div className="p-6 md:p-8 space-y-6 md:col-span-2">
+                                    <div className="space-y-4">
+                                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-10 md:mt-0 block text-emerald-800">1. SOKAK & BİNA BİLGİLERİ</Label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2 relative">
+                                                <Label className="text-[10px] font-bold text-muted-foreground tracking-widest">SOKAK / CADDE</Label>
+                                                <Input name="sokak" placeholder="Gül Sokak" className="bg-secondary/20 h-11 text-sm border-border w-full" />
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] font-bold text-muted-foreground tracking-widest">BİNA NO</Label>
+                                                    <Input name="binaNo" placeholder="12A" className="bg-secondary/20 h-11 text-sm border-border w-full" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] font-bold text-muted-foreground tracking-widest">KAT</Label>
+                                                    <Input name="kat" placeholder="3" className="bg-secondary/20 h-11 text-sm border-border w-full" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] font-bold text-muted-foreground tracking-widest">DAİRE</Label>
+                                                    <Input name="daire" placeholder="5" className="bg-secondary/20 h-11 text-sm border-border w-full" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-4 pt-2 border-t border-border/40">
+                                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block text-emerald-800">2. ADRES TARİFİ & İLETİŞİM</Label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-bold text-muted-foreground tracking-widest">ADRES DETAYI / TARİFİ (Opsiyonel)</Label>
+                                                <Input name="addressDetail" placeholder="Örn: B11 Blok, Şok Marketin yanı..." className="bg-secondary/20 h-11 text-sm border-border w-full" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-bold text-muted-foreground tracking-widest">İLETİŞİM TELEFONU *</Label>
+                                                <Input name="telefon" placeholder="05XX XXX XX XX" required className="bg-secondary/20 h-11 text-sm border-border w-full" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>

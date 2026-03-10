@@ -240,7 +240,17 @@ export async function updateHouseholdFieldInfoAction(formData: FormData) {
     const firstName = formData.get("firstName") as string;
     const lastName = formData.get("lastName") as string;
     const phone = formData.get("phone") as string;
-    const address = formData.get("address") as string;
+    
+    // YENİ PARÇALI ADRES
+    const mahalle = formData.get("mahalle") as string;
+    const sokak = formData.get("sokak") as string;
+    const binaNo = formData.get("binaNo") as string;
+    const kat = formData.get("kat") as string;
+    const daire = formData.get("daire") as string;
+    const addressDetail = formData.get("addressDetail") as string;
+
+    // ESKİ UYUMLULUK VE ANLIK GÜNCELLEMELER (Tüm parçalar değişmemiş olabilir, bu yüzden mevcudu db'den alıp yama yapabiliriz, ya da frontendin hepsini yollamasını bekleyebiliriz. Frontend hepsini yollayacak.)
+    const consolidatedAddress = `${mahalle || ""} ${sokak || ""}, Bina: ${binaNo || "-"}, Kat: ${kat || "-"}, Daire: ${daire || "-"} ${addressDetail ? `(${addressDetail})` : ""}`.trim();
 
     if (!householdId) {
         return { success: false, message: "Hane kimliği bulunamadı." };
@@ -253,7 +263,13 @@ export async function updateHouseholdFieldInfoAction(formData: FormData) {
                 where: { id: householdId },
                 data: {
                     contactNumber: phone || undefined,
-                    address: address || undefined
+                    address: consolidatedAddress || undefined,
+                    mahalle: mahalle || undefined,
+                    sokak: sokak || undefined,
+                    binaNo: binaNo || undefined,
+                    kat: kat || undefined,
+                    daire: daire || undefined,
+                    addressDetail: addressDetail || undefined,
                 }
             });
 
