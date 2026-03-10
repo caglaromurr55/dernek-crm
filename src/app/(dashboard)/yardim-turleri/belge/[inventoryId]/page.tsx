@@ -1,7 +1,8 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer } from "lucide-react";
+import { PrintButton } from "@/components/inventory/PrintButton";
 import Link from "next/link";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -35,18 +36,7 @@ export default async function DocumentDeliveryPrintView({ params }: { params: Pr
                         <ArrowLeft className="w-4 h-4 mr-2" /> Geri Dön
                     </Button>
                 </Link>
-                <Button
-                    variant="default"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg"
-                    suppressHydrationWarning
-                >
-                    <Printer className="w-4 h-4 mr-2" />
-                    <span onClick={() => {
-                        if (typeof window !== "undefined") window.print();
-                    }} className="w-full h-full flex items-center">
-                        TUTANAĞI YAZDIR
-                    </span>
-                </Button>
+                <PrintButton />
             </div>
 
             {/* A4 Paper Canvas */}
