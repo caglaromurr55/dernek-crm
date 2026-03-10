@@ -295,7 +295,7 @@ export function VolunteerDeliveryCard({ delivery }: { delivery: any }) {
             </div>
 
             <Dialog open={open} onOpenChange={(v) => { if (!v) { stopScanning(); setStep("VERIFICATION"); } setOpen(v); }}>
-                <DialogContent className="sm:max-w-md rounded-[36px] p-0 overflow-hidden border-0 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] bg-white w-[95vw] md:w-full mx-auto outline-none">
+                <DialogContent showCloseButton={false} className="sm:max-w-md rounded-[36px] p-0 overflow-hidden border-0 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] bg-white w-[95vw] md:w-full mx-auto outline-none">
                     
                     {/* Minimal Header */}
                     <div className="px-6 py-6 pb-4 flex items-center gap-4 bg-white">
