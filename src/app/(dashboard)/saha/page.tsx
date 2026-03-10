@@ -1,4 +1,5 @@
 import { MapPin, Phone, CheckCircle, Navigation } from "lucide-react";
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";

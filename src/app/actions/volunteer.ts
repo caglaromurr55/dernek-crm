@@ -16,6 +16,18 @@ export async function claimDistributionListAction(formData: FormData) {
     }
 
     try {
+        // --- ENGELLEME KONTROLÜ ---
+        const volunteerData = await prisma.volunteer.findUnique({
+            where: { phone }
+        });
+
+        if (volunteerData?.isBlocked) {
+            return {
+                success: false,
+                message: "Güvenlik nedeniyle bu telefon numarası ile yeni liste üstlenemezsiniz. Lütfen dernek merkezi ile iletişime geçin."
+            };
+        }
+
         const list = await prisma.distributionList.findUnique({
             where: { token }
         });
@@ -28,16 +40,24 @@ export async function claimDistributionListAction(formData: FormData) {
             return { success: false, message: "Bu liste zaten başka bir gönüllü tarafından üstlenilmiş." };
         }
 
-        await prisma.distributionList.update({
-            where: { token },
-            data: {
-                assignedTo: name,
-                assignedPhone: phone
-            }
-        });
+        // Listeyi ata ve gerekirse Gönüllü kaydını oluştur/güncelle
+        await prisma.$transaction([
+            prisma.distributionList.update({
+                where: { token },
+                data: {
+                    assignedTo: name,
+                    assignedPhone: phone
+                }
+            }),
+            prisma.volunteer.upsert({
+                where: { phone },
+                create: { name, phone },
+                update: { name } // İsmi güncelleyebiliriz
+            })
+        ]);
 
         revalidatePath(`/saha/liste/${token}`);
-        revalidatePath(`/dagitim/liste/${list.id}`); // Yöneticinin sayfasını da yenile
+        revalidatePath(`/dagitim/liste/${list.id}`);
 
         return { success: true };
     } catch (error) {
@@ -145,5 +165,152 @@ export async function updateVolunteerDeliveryAction(formData: FormData) {
     } catch (error) {
         console.error("Gönüllü işlem hatası:", error);
         return { success: false, message: "İşlem sırasında çevresel bir hata meydana geldi." };
+    }
+}
+
+export async function reportDeliveryIssueAction(formData: FormData) {
+    const deliveryId = formData.get("deliveryId") as string;
+    const householdId = formData.get("householdId") as string;
+    const issueReason = formData.get("issueReason") as string; // e.g. "Taşınmış", "İhtiyaçlı Değil"
+    const issueNote = formData.get("issueNote") as string; // Extra notes from volunteer
+    const volunteerName = formData.get("volunteerName") as string;
+
+    if (!deliveryId || !householdId || !issueReason) {
+        return { success: false, message: "Geçersiz işlem parametreleri." };
+    }
+
+    try {
+        let dbDelivery: any = null;
+        let tokenToRevalidate: string | null = null;
+        let eventIdToRevalidate: string | null = null;
+        let listIdToRevalidate: string | null = null;
+
+        await prisma.$transaction(async (tx: any) => {
+            // Cancel the delivery
+            dbDelivery = await tx.delivery.update({
+                where: { id: deliveryId },
+                data: {
+                    status: "CANCELLED",
+                    notes: `İPTAL NEDENİ: ${issueReason} - ${issueNote}`.trim()
+                },
+                include: { distributionList: true }
+            });
+
+            // Put the household into PENDING_REVIEW and append notes
+            const existingHousehold = await tx.household.findUnique({
+                where: { id: householdId },
+                select: { notes: true }
+            });
+
+            const currentNotes = existingHousehold?.notes ? existingHousehold.notes + "\n\n" : "";
+            const newOfficeNote = `[SAHA BİLDİRİMİ] ${new Date().toLocaleDateString("tr-TR")} - Gönüllü (${volunteerName}): ${issueReason}${issueNote ? ' - ' + issueNote : ''}`;
+
+            await tx.household.update({
+                where: { id: householdId },
+                data: {
+                    status: "PENDING_REVIEW",
+                    notes: currentNotes + newOfficeNote
+                }
+            });
+
+            if (dbDelivery.distributionList?.token) tokenToRevalidate = dbDelivery.distributionList.token;
+            if (dbDelivery.distributionListId) listIdToRevalidate = dbDelivery.distributionListId;
+            if (dbDelivery.distributionEventId) eventIdToRevalidate = dbDelivery.distributionEventId;
+        });
+
+        if (dbDelivery) {
+            const { createAuditLog } = await import("@/lib/audit");
+            await createAuditLog("COMPLETE", "DELIVERY", deliveryId, { status: "CANCELLED", reason: issueReason, by: volunteerName });
+
+            if (tokenToRevalidate) revalidatePath(`/saha/liste/${tokenToRevalidate}`);
+            if (eventIdToRevalidate) revalidatePath(`/dagitim/${eventIdToRevalidate}`);
+            if (listIdToRevalidate) revalidatePath(`/dagitim/liste/${listIdToRevalidate}`);
+            revalidatePath(`/haneler/${householdId}`); // Revalidate household details to show the note instantly
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error("Sorun bildirilirken hata:", error);
+        return { success: false, message: "Sorun bildiriminiz sırasında bir hata oluştu." };
+    }
+}
+
+export async function updateHouseholdFieldInfoAction(formData: FormData) {
+    const householdId = formData.get("householdId") as string;
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
+    const phone = formData.get("phone") as string;
+    
+    // YENİ PARÇALI ADRES
+    const mahalle = formData.get("mahalle") as string;
+    const sokak = formData.get("sokak") as string;
+    const binaNo = formData.get("binaNo") as string;
+    const kat = formData.get("kat") as string;
+    const daire = formData.get("daire") as string;
+    const addressDetail = formData.get("addressDetail") as string;
+
+    // ESKİ UYUMLULUK VE ANLIK GÜNCELLEMELER (Tüm parçalar değişmemiş olabilir, bu yüzden mevcudu db'den alıp yama yapabiliriz, ya da frontendin hepsini yollamasını bekleyebiliriz. Frontend hepsini yollayacak.)
+    const consolidatedAddress = `${mahalle || ""} ${sokak || ""}, Bina: ${binaNo || "-"}, Kat: ${kat || "-"}, Daire: ${daire || "-"} ${addressDetail ? `(${addressDetail})` : ""}`.trim();
+
+    if (!householdId) {
+        return { success: false, message: "Hane kimliği bulunamadı." };
+    }
+
+    try {
+        await prisma.$transaction(async (tx: any) => {
+            // Update household
+            await tx.household.update({
+                where: { id: householdId },
+                data: {
+                    contactNumber: phone || undefined,
+                    address: consolidatedAddress || undefined,
+                    mahalle: mahalle || undefined,
+                    sokak: sokak || undefined,
+                    binaNo: binaNo || undefined,
+                    kat: kat || undefined,
+                    daire: daire || undefined,
+                    addressDetail: addressDetail || undefined,
+                }
+            });
+
+            if (firstName || lastName) {
+                // Find applicant person
+                const applicants = await tx.person.findMany({
+                    where: { householdId, isApplicant: true },
+                    take: 1
+                });
+
+                if (applicants.length > 0) {
+                    await tx.person.update({
+                        where: { id: applicants[0].id },
+                        data: {
+                            firstName: firstName || undefined,
+                            lastName: lastName || undefined
+                        }
+                    });
+                } else {
+                    // if no applicant specifically, just update the first person
+                    const anyPerson = await tx.person.findFirst({
+                        where: { householdId }
+                    });
+                    if (anyPerson) {
+                        await tx.person.update({
+                            where: { id: anyPerson.id },
+                            data: {
+                                firstName: firstName || undefined,
+                                lastName: lastName || undefined
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        // Optional: Revalidate paths if needed
+        revalidatePath(`/haneler/${householdId}`);
+        return { success: true };
+    } catch (error) {
+        console.error("Hane bilgileri güncellenirken hata:", error);
+        return { success: false, message: "Bilgiler güncellenirken bir hata oluştu." };
     }
 }

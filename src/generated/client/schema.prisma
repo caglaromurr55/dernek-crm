@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  password  String
+}
+
+model Household {
+  id                 String    @id @default(uuid())
+  address            String
+  contactNumber      String?
+  score              Int?      @default(0)
+  status             String    @default("PENDING")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  monthlyIncome      Int?      @default(0)
+  rentAmount         Int?      @default(0)
+  rentStatus         String?
+  workerCount        Int?      @default(0)
+  studentCount       Int?      @default(0)
+  disabledChildCount Int?      @default(0)
+  carOwnership       Boolean?  @default(false)
+  estateOwnership    Boolean?  @default(false)
+  debtAmount         Int?      @default(0)
+  heatingType        String?   @default("dogalgaz")
+  lastAidDate        DateTime?
+  foodExpense        Int?      @default(0)
+  educationExpense   Int?      @default(0)
+  billExpense        Int?      @default(0)
+  healthExpense      Int?      @default(0)
+  otherExpense       Int?      @default(0)
+  socialAidAmount    Int?      @default(0)
+
+  // -- YENİEKLENEN GİDERLER --
+  heatingExpense        Int? @default(0)
+  clothingExpense       Int? @default(0)
+  transportationExpense Int? @default(0)
+  babyExpense           Int? @default(0)
+
+  // -- SOSYOLOJİK İNCELEME & EV DETAYLARI --
+  roofCondition      String?
+  waterDamage        Boolean? @default(false)
+  furnitureCondition String?
+  hasInternet        Boolean? @default(false)
+  hasWashingMachine  Boolean? @default(false)
+  hasRefrigerator    Boolean? @default(false)
+
+  diseaseDetails String?
+  notes          String?
+  tags           String[]   @default([])
+  deliveries     Delivery[]
+  persons        Person[]
+
+  // V5: Butik Limiti
+  boutiqueBalance      Int                   @default(0) // Ailenin giyim mağazası hakkı (puan/parça)
+  boutiqueTransactions BoutiqueTransaction[]
+
+  @@index([score])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  userId    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+}
+
+model Person {
+  id                String    @id @default(uuid())
+  householdId       String
+  firstName         String
+  lastName          String
+  identityNo        String    @unique
+  birthDate         DateTime?
+  isDisabled        Boolean   @default(false)
+  hasChronicIllness Boolean   @default(false)
+  isStudent         Boolean   @default(false)
+  isApplicant       Boolean   @default(false)
+
+  // -- YENİ DEMOGRAFİK ALANLAR --
+  gender           String?
+  educationalLevel String?
+  maritalStatus    String?
+  employmentStatus String?
+  monthlyIncome    Int?    @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([firstName, lastName])
+  @@index([identityNo])
+  @@index([householdId])
+  @@index([isApplicant])
+}
+
+model DistributionEvent {
+  id          String             @id @default(uuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  status      String             @default("ACTIVE")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  itemId      String?
+  item        Item?              @relation(fields: [itemId], references: [id])
+  lists       DistributionList[]
+  deliveries  Delivery[]
+}
+
+model DistributionList {
+  id                  String            @id @default(uuid())
+  name                String? // Örn: "Liste 1"
+  token               String?           @unique @default(cuid()) // Saha görevlisinin barkod/link ile erişimi için
+  assignedTo          String? // Gönüllü Adı Soyadı
+  assignedPhone       String? // Gönüllü Telefonu
+  distributionEventId String
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  distributionEvent   DistributionEvent @relation(fields: [distributionEventId], references: [id], onDelete: Cascade)
+  deliveries          Delivery[]
+}
+
+model Delivery {
+  id                  String            @id @default(uuid())
+  distributionEventId String
+  distributionListId  String?
+  householdId         String
+  status              String            @default("PENDING")
+  deliveredAt         DateTime?
+  deliveredBy         String?
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  signatureData       String?
+  distributionEvent   DistributionEvent @relation(fields: [distributionEventId], references: [id], onDelete: Cascade)
+  distributionList    DistributionList? @relation(fields: [distributionListId], references: [id], onDelete: SetNull)
+  household           Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@index([distributionEventId])
+  @@index([status])
+}
+
+model Item {
+  id              String              @id @default(uuid())
+  name            String              @unique
+  unit            String              @default("ADET")
+  stock           Int                 @default(0)
+  isPackage       Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  events          DistributionEvent[]
+  inventories     Inventory[]
+  packageContents PackageItem[]       @relation("PackageContent")
+  partOfPackages  PackageItem[]       @relation("ComponentItem")
+}
+
+model PackageItem {
+  id        String @id @default(uuid())
+  packageId String
+  itemId    String
+  quantity  Int
+  package   Item   @relation("PackageContent", fields: [packageId], references: [id], onDelete: Cascade)
+  item      Item   @relation("ComponentItem", fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, itemId])
+}
+
+model Inventory {
+  id        String   @id @default(uuid())
+  itemId    String
+  type      String
+  quantity  Int
+  reason    String?
+  createdAt DateTime @default(now())
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+model Neighborhood {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// V5: SOSYAL BUTİK MODELLERİ
+
+model BoutiqueItem {
+  id        String   @id @default(uuid())
+  barcode   String   @unique // Önceden var olan veya sistem tarafından Code128 formatında üretilen barkod
+  name      String // Örn: "Erkek Kışlık Mont"
+  category  String // Örn: "Mont", "Kazak", "Pantolon", "Gömlek"
+  gender    String // Örn: "ERKEK", "KADIN", "ÇOCUK", "UNISEX"
+  size      String // Örn: "S", "M", "L", "XL", "38", "40", "STANDART"
+  points    Int      @default(1) // 1 parça alındığında limitten düşülecek Kredi/Puan (Genelde 1)
+  stock     Int      @default(0) // Güncel stok
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions BoutiqueTransaction[]
+}
+
+model BoutiqueTransaction {
+  id             String   @id @default(uuid())
+  householdId    String
+  boutiqueItemId String
+  quantity       Int      @default(1) // Sepete kaç tane atıldığı
+  pointsSpent    Int // quantity * BoutiqueItem.points üzerinden hesaplanan harcanan kredi
+  createdAt      DateTime @default(now())
+  createdBy      String? // İşlemi yapan görevlinin adı
+
+  household    Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  boutiqueItem BoutiqueItem @relation(fields: [boutiqueItemId], references: [id], onDelete: Restrict)
+
+  @@index([householdId])
+  @@index([boutiqueItemId])
+}
+
+model Volunteer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String   @unique
+  isBlocked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

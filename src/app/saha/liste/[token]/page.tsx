@@ -1,14 +1,14 @@
-import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
-import { ClaimForm } from "./ClaimForm";
-import { VolunteerDeliveryItem } from "./VolunteerDeliveryItem";
+import { notFound } from "next/navigation";
+import { MapPin, Phone, PackageCheck, UserCheck, ShieldAlert, Navigation, Layers, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { claimDistributionListAction } from "@/app/actions/volunteer";
+import { DeliveryListClient } from "./DeliveryListClient";
+import { VolunteerLoginForm } from "./VolunteerLoginForm";
 
-export const metadata = {
-    title: "Saha Dağıtım Ekranı | Dernek CRM",
-    description: "Dernek CRM Gönüllü Dağıtım Ekranı"
-};
-
-export default async function VolunteerTokenPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function SahaPublicListPage({ params }: { params: Promise<{ token: string }> }) {
     const { token } = await params;
 
     const list = await prisma.distributionList.findUnique({
@@ -21,9 +21,7 @@ export default async function VolunteerTokenPage({ params }: { params: Promise<{
                 include: {
                     household: {
                         include: {
-                            persons: {
-                                where: { isApplicant: true }
-                            }
+                            persons: true
                         }
                     }
                 },
@@ -38,73 +36,125 @@ export default async function VolunteerTokenPage({ params }: { params: Promise<{
         notFound();
     }
 
-    // Eğer henüz kimseye atanmamışsa, atama (zimmet) formunu göster
     if (!list.assignedTo) {
         return (
-            <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full">
-                    <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-xl shadow-blue-600/20">
-                            <span className="text-2xl text-white font-black">CRM</span>
-                        </div>
-                        <h1 className="text-2xl font-black text-zinc-900 mb-2">Dağıtım Listesi Ataması</h1>
-                        <p className="text-zinc-500">Bu dağıtım listesini üstlenmek için bilgilerinizi girin.</p>
-                    </div>
+            <div className="min-h-[100dvh] relative overflow-hidden flex flex-col justify-center animate-in fade-in duration-1000">
+                {/* Background Ambient Effects */}
+                <div className="absolute inset-0 bg-zinc-950"></div>
+                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-500/20 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 mix-blend-screen pointer-events-none"></div>
+                <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-teal-500/10 rounded-full blur-[150px] translate-x-1/3 translate-y-1/3 mix-blend-screen pointer-events-none"></div>
 
-                    <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-zinc-100">
-                        <div className="mb-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
-                            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Kampanya</p>
-                            <p className="font-black text-zinc-900">{list.distributionEvent.name}</p>
-                            <p className="text-sm font-medium text-zinc-500 mt-1">{list.name}</p>
-
-                            <div className="mt-3 pt-3 border-t border-blue-100 flex justify-between items-center">
-                                <span className="text-xs text-zinc-500">Dağıtılacak Hane:</span>
-                                <span className="font-black text-emerald-600">{list.deliveries.length} Adet</span>
+                <div className="relative z-10 w-full max-w-md mx-auto p-6 md:p-8">
+                    <Card className="border-0 bg-white/5 backdrop-blur-2xl shadow-2xl rounded-[3rem] overflow-hidden ring-1 ring-white/10">
+                        <div className="p-10 text-center flex flex-col items-center border-b border-white/5 bg-gradient-to-b from-white/10 to-transparent">
+                            <div className="w-24 h-24 bg-gradient-to-tr from-emerald-400 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(52,211,153,0.3)] flex items-center justify-center mb-6 transform -rotate-6 hover:rotate-0 transition-transform duration-500">
+                                <UserCheck className="w-12 h-12 text-white" />
                             </div>
+                            <h1 className="text-3xl font-black text-white tracking-tight leading-none mb-3">Saha Görevi</h1>
+                            <p className="text-zinc-400 max-w-[250px] text-sm font-medium leading-relaxed">
+                                Size atanan teslimat listesini görmek için bilgilerinizi doğrulayın.
+                            </p>
                         </div>
+                        <CardContent className="p-8 pt-10">
+                            <VolunteerLoginForm token={token} />
+                        </CardContent>
+                    </Card>
 
-                        <ClaimForm token={token} />
+                    <div className="mt-8 text-center px-4">
+                        <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-2">
+                            <ShieldAlert className="w-4 h-4" /> Güvenli Platform
+                        </p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Eğer atanmışsa (claim edilmişse), doğrudan teslimat listesini göster
+    const pendingDeliveries = list.deliveries.filter(d => d.status === "PENDING");
+    const completedDeliveries = list.deliveries.filter(d => d.status === "DELIVERED" || d.status === "CANCELLED");
+
+    const progressPercentage = list.deliveries.length > 0 
+        ? Math.round((completedDeliveries.length / list.deliveries.length) * 100)
+        : 0;
+
     return (
-        <div className="min-h-screen bg-zinc-50 pb-24">
-            <div className="bg-blue-600 text-white rounded-b-[2.5rem] p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600 to-indigo-700 -z-10"></div>
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
-
-                <div className="flex justify-between items-center mb-6 pt-2">
-                    <h1 className="text-xl font-black tracking-tight">{list.distributionEvent.name}</h1>
-                </div>
-
-                <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-                    <div className="w-10 h-10 rounded-full bg-white text-blue-600 flex items-center justify-center font-black text-lg">
-                        {list.assignedTo?.charAt(0).toUpperCase()}
+        <div className="min-h-[100dvh] bg-[#f4f4f5] relative selection:bg-emerald-500/30 font-sans pb-32 selection:bg-black/10">
+            
+            {/* Header Area */}
+            <div className="bg-white px-6 pb-6 pt-12 shadow-[0_2px_20px_rgba(0,0,0,0.02)] sticky top-0 z-40">
+                <div className="max-w-2xl mx-auto">
+                    <div className="flex justify-between items-end mb-6">
+                        <div className="space-y-1">
+                            <h1 className="text-[32px] font-black tracking-tighter text-zinc-900 leading-none">Görevlerim</h1>
+                            <div className="flex items-center gap-1.5 text-zinc-500 mt-1">
+                                <UserCheck className="w-4 h-4" />
+                                <span className="text-[13px] font-bold uppercase tracking-widest">{list.assignedTo}</span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-center">
+                            <div className="flex items-baseline gap-0.5 text-emerald-600 font-black">
+                                <span className="text-3xl tracking-tighter leading-none">{completedDeliveries.length}</span>
+                                <span className="text-sm opacity-50">/{list.deliveries.length}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs text-blue-200 uppercase font-bold tracking-wider mb-0.5">Saha Görevlisi</p>
-                        <p className="font-bold leading-none">{list.assignedTo}</p>
+
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center text-[13px] font-bold">
+                            <span className="text-zinc-600 flex items-center gap-2">
+                                <PackageCheck className="w-4 h-4" />
+                                {list.distributionEvent.item?.name || "Teslimat Paketi"}
+                            </span>
+                            <span className="text-emerald-600">{progressPercentage}%</span>
+                        </div>
+                        <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden shadow-inner flex">
+                            <div
+                                className="h-full bg-emerald-500 transition-all duration-1000 ease-out relative rounded-full"
+                                style={{ width: `${progressPercentage}%` }}
+                            ></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="p-4 sm:p-6 -mt-4 relative z-10">
-                <div className="flex justify-between items-end mb-4 px-2">
-                    <div>
-                        <h2 className="text-sm font-black text-zinc-800 uppercase tracking-widest">{list.name}</h2>
-                        <p className="text-xs text-zinc-500 mt-1 font-medium">{list.deliveries.filter(d => d.status === "DELIVERED").length} / {list.deliveries.length} Teslimat</p>
-                    </div>
-                </div>
+            {/* Main Content Area */}
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 relative z-10 pt-4">
+                
+                {/* Searchable Client List */}
+                <DeliveryListClient pendingDeliveries={pendingDeliveries} />
 
-                <div className="space-y-4">
-                    {list.deliveries.map((delivery) => (
-                        <VolunteerDeliveryItem key={delivery.id} delivery={delivery} />
-                    ))}
-                </div>
+                {/* Completed */}
+                {completedDeliveries.length > 0 && (
+                    <div className="space-y-4 pt-6">
+                        <div className="px-2 border-t border-black/[0.05] pt-8 opacity-60">
+                            <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest">Geçmiş İşlemler</h3>
+                        </div>
+                        <div className="grid gap-3">
+                            {completedDeliveries.map((delivery) => {
+                                const applicant = delivery.household.persons.find(p => p.isApplicant) || delivery.household.persons[0];
+                                const isCancelled = delivery.status === "CANCELLED";
+                                return (
+                                    <div key={delivery.id} className="bg-transparent px-4 py-3 flex items-center justify-between border-b border-black/[0.03] opacity-60">
+                                        <div className="flex items-center gap-4 overflow-hidden">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCancelled ? 'bg-zinc-200 text-zinc-500' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                {isCancelled ? <ShieldAlert className="w-4 h-4" /> : <PackageCheck className="w-4 h-4" />}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-bold text-zinc-900 text-[15px] truncate">
+                                                    {applicant?.firstName} {applicant?.lastName}
+                                                </p>
+                                                <p className="text-[12px] text-zinc-500 font-medium truncate mt-0.5 max-w-[200px]">
+                                                    {isCancelled ? "Sorun Bildirildi" : "Teslim Edildi"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

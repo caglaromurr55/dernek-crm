@@ -5,6 +5,8 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { normalizeTr, loadTurkishFont } from "@/lib/pdf-utils";
+
 
 interface DistributionListPDFButtonProps {
     list: any;
@@ -17,6 +19,7 @@ export function DistributionListPDFButton({ list }: DistributionListPDFButtonPro
         setLoading(true);
         try {
             const doc = new jsPDF("landscape");
+            await loadTurkishFont(doc);
 
             // --- Header ---
             doc.setFontSize(22);
@@ -25,14 +28,14 @@ export function DistributionListPDFButton({ list }: DistributionListPDFButtonPro
 
             doc.setFontSize(12);
             doc.setTextColor(50);
-            doc.text(`Liste Adi: ${list.name}`, 20, 30);
-            doc.text(`Kampanya: ${list.distributionEvent.name}`, 20, 37);
-            doc.text(`Urun: ${list.distributionEvent.item?.name || "Belirtilmedi"}`, 20, 44);
+            doc.text(`Liste Adi: ${normalizeTr(list.name)}`, 20, 30);
+            doc.text(`Kampanya: ${normalizeTr(list.distributionEvent.name)}`, 20, 37);
+            doc.text(`Urun: ${normalizeTr(list.distributionEvent.item?.name || "Belirtilmedi")}`, 20, 44);
             doc.text(`Tarih: ${new Date().toLocaleDateString("tr-TR")}`, 20, 51);
 
             // --- QR Code ---
             if (list.token) {
-                const qrUrl = `${window.location.origin}/saha/liste/${list.token}`;
+                const qrUrl = `${window.location.host === 'localhost:3000' ? 'http://' : 'https://'}${window.location.host}/saha/liste/${list.token}`;
                 try {
                     const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 100 });
                     doc.addImage(qrDataUrl, "PNG", 240, 10, 40, 40);
@@ -90,12 +93,12 @@ export function DistributionListPDFButton({ list }: DistributionListPDFButtonPro
 
                 doc.text(`${index + 1}`, 20, startY);
                 doc.text(`${applicant?.identityNo || "-"}`, 35, startY);
-                doc.text(`${applicant?.firstName} ${applicant?.lastName}`, 70, startY);
+                doc.text(normalizeTr(`${applicant?.firstName} ${applicant?.lastName}`), 70, startY);
                 doc.text(`${delivery.household?.contactNumber || "-"}`, 120, startY);
 
                 // Adresi kisaltarak ekle
                 const address = delivery.household?.address?.substring(0, 50) + (delivery.household?.address?.length > 50 ? "..." : "") || "-";
-                doc.text(address, 155, startY, { maxWidth: 70 });
+                doc.text(normalizeTr(address), 155, startY, { maxWidth: 70 });
 
                 // Imza alani
                 doc.line(230, startY, 270, startY);
@@ -106,7 +109,7 @@ export function DistributionListPDFButton({ list }: DistributionListPDFButtonPro
             // --- Footer ---
             doc.setFontSize(9);
             doc.setTextColor(150);
-            const adminNote = list.assignedTo ? `Atanan Gonullu: ${list.assignedTo} (${list.assignedPhone})` : "Gorevli atanmadi (QR ile atanabilir).";
+            const adminNote = list.assignedTo ? `Atanan Gonullu: ${normalizeTr(list.assignedTo)} (${list.assignedPhone || '-'})` : "Gorevli atanmadi (QR ile atanabilir).";
             doc.text(`Sistem Bilgisi: ${adminNote}`, 20, 200);
 
             doc.save(`Dagitim_Listesi_${list.distributionEvent.name.replace(/\s+/g, "_")}.pdf`);
@@ -120,7 +123,7 @@ export function DistributionListPDFButton({ list }: DistributionListPDFButtonPro
     return (
         <Button variant="outline" className="gap-2 shrink-0 border-blue-200 hover:bg-blue-50 text-blue-700" onClick={generatePDF} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-            Karekodlu Liste Çıktısı Al
+            Liste Çıktısı Al
         </Button>
     );
 }

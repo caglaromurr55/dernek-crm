@@ -107,7 +107,7 @@
 .glass-card {
   background-color: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(8px);
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.01),
     0 10px 15px -3px rgba(15, 23, 42, 0.08);
@@ -176,4 +176,53 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+/* MRZ Scanning Animation */
+.animate-scan-line {
+  animation: scanLine 2.5s ease-in-out infinite;
+}
+
+@keyframes scanLine {
+  0% {
+    top: 5%;
+    opacity: 0.2;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    top: 95%;
+    opacity: 0.2;
+  }
+}
+
+/* --- PRINT LAYOUT STYLES --- */
+@media print {
+  @page {
+    margin: 1cm;
+    size: A4 portrait;
+  }
+
+  /* Reset all backgrounds for printing */
+  body,
+  .dark body {
+    background: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+
+  /* Hide sidebar, topbar, buttons when printing */
+  aside,
+  nav,
+  header {
+    display: none !important;
+  }
+
+  /* Hide custom scrollbars */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
 }

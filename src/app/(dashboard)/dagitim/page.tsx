@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Package, Calendar, ChevronRight, Activity, Clock, CheckCircle2, XCircle } from "lucide-react";
@@ -26,15 +27,14 @@ export default async function DagitimPage() {
         orderBy: { name: "asc" }
     });
 
-    const households = await (prisma as any).household.findMany({
-        select: { address: true }
+    // Benzersiz mahalleleri veritabanından çek (Dinamik Lokasyonlar)
+    const neighborhoodDocs = await (prisma as any).neighborhood.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" }
     });
-
-    const neighborhoods = Array.from(new Set(
-        households
-            .map((h: any) => h.address.split(" - ")[0])
-            .filter((n: string) => n && n.length > 0)
-    )).sort() as string[];
+    const neighborhoods = neighborhoodDocs
+        .map((n: { name: string }) => n.name)
+        .filter((n: string) => n && n.length > 0); // Filter out empty or null names
 
     return (
         <div className="space-y-8 animate-in-fade">
@@ -47,82 +47,84 @@ export default async function DagitimPage() {
             </div>
 
             <div className="glass-card rounded-3xl shadow-2xl border-0 overflow-hidden">
-                <Table>
-                    <TableHeader className="bg-secondary/50">
-                        <TableRow className="hover:bg-transparent border-border">
-                            <TableHead className="font-bold text-muted-foreground py-5 pl-8">KAMPANYA / DAĞITIM ADI</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5">BAŞLANGIÇ</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-center">HEDEF HANE</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5">DURUM</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">İŞLEMLER</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {events.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-20 px-8">
-                                    <div className="flex flex-col items-center justify-center opacity-30 gap-4">
-                                        <Package className="h-16 w-16 text-zinc-300" />
-                                        <div className="space-y-1">
-                                            <p className="font-black text-xl">Henüz bir kampanya yok.</p>
-                                            <p className="text-sm font-medium">Sağ üstten yeni bir dağıtım operasyonu başlatabilirsiniz.</p>
-                                        </div>
-                                    </div>
-                                </TableCell>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader className="bg-secondary/50">
+                            <TableRow className="hover:bg-transparent border-border">
+                                <TableHead className="font-bold text-muted-foreground py-5 pl-8">KAMPANYA / DAĞITIM ADI</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5">BAŞLANGIÇ</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-center">HEDEF HANE</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5">DURUM</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">İŞLEMLER</TableHead>
                             </TableRow>
-                        ) : (
-                            events.map((evt: any) => (
-                                <TableRow key={evt.id} className="group hover:bg-secondary transition-all border-border even:bg-secondary/40">
-                                    <TableCell className="py-5 pl-8">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-11 w-11 rounded-2xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:bg-emerald-50/10 group-hover:text-emerald-500 transition-all shadow-sm">
-                                                <Activity className="w-5 h-5" />
+                        </TableHeader>
+                        <TableBody>
+                            {events.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-20 px-8">
+                                        <div className="flex flex-col items-center justify-center opacity-30 gap-4">
+                                            <Package className="h-16 w-16 text-zinc-300" />
+                                            <div className="space-y-1">
+                                                <p className="font-black text-xl">Henüz bir kampanya yok.</p>
+                                                <p className="text-sm font-medium">Sağ üstten yeni bir dağıtım operasyonu başlatabilirsiniz.</p>
                                             </div>
-                                            <div>
-                                                <p className="font-bold text-foreground group-hover:text-emerald-700 transition-colors uppercase tracking-tight">{evt.name}</p>
-                                                <p className="text-[10px] font-black text-muted-foreground mt-1 tracking-widest uppercase truncate max-w-[100px]">ID: {evt.id.slice(0, 8)}</p>
-                                            </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground/80">
-                                            <Calendar className="h-4 w-4 text-emerald-500" />
-                                            {evt.startDate?.toLocaleDateString("tr-TR")}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="inline-flex items-center justify-center bg-secondary text-foreground h-9 px-4 rounded-xl font-black text-sm group-hover:bg-background group-hover:shadow-inner transition-all border border-transparent group-hover:border-border">
-                                            {evt._count?.deliveries || 0} Hane
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            className={
-                                                evt.status === "ACTIVE"
-                                                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm border-0 gap-1.5"
-                                                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 border-0 gap-1.5"
-                                            }
-                                        >
-                                            {evt.status === "ACTIVE" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                            {evt.status === "ACTIVE" ? "Aktif Operasyon" : "Tamamlandı"}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right pr-8">
-                                        <Link href={`/dagitim/${evt.id}`}>
-                                            <Button variant="ghost" size="sm" className="rounded-xl group-hover:bg-background group-hover:shadow-sm font-bold text-emerald-700">
-                                                Yönet <ChevronRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                                            </Button>
-                                        </Link>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                events.map((evt: any) => (
+                                    <TableRow key={evt.id} className="group hover:bg-secondary transition-all border-border even:bg-secondary/40">
+                                        <TableCell className="py-5 pl-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-11 w-11 rounded-2xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:bg-emerald-50/10 group-hover:text-emerald-500 transition-all shadow-sm">
+                                                    <Activity className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-foreground group-hover:text-emerald-700 transition-colors uppercase tracking-tight">{evt.name}</p>
+                                                    <p className="text-[10px] font-black text-muted-foreground mt-1 tracking-widest uppercase truncate max-w-[100px]">ID: {evt.id.slice(0, 8)}</p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground/80">
+                                                <Calendar className="h-4 w-4 text-emerald-500" />
+                                                {evt.startDate?.toLocaleDateString("tr-TR")}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="inline-flex items-center justify-center bg-secondary text-foreground h-9 px-4 rounded-xl font-black text-sm group-hover:bg-background group-hover:shadow-inner transition-all border border-transparent group-hover:border-border">
+                                                {evt._count?.deliveries || 0} Hane
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                className={
+                                                    evt.status === "ACTIVE"
+                                                        ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm border-0 gap-1.5"
+                                                        : "bg-secondary text-muted-foreground hover:bg-secondary/80 border-0 gap-1.5"
+                                                }
+                                            >
+                                                {evt.status === "ACTIVE" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                                {evt.status === "ACTIVE" ? "Aktif Operasyon" : "Tamamlandı"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right pr-8">
+                                            <Link href={`/dagitim/${evt.id}`}>
+                                                <Button variant="ghost" size="sm" className="rounded-xl group-hover:bg-background group-hover:shadow-sm font-bold text-emerald-700">
+                                                    Yönet <ChevronRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                                                </Button>
+                                            </Link>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
 
             <div className="p-8 glass-card rounded-3xl relative overflow-hidden shadow-xl border-border/50">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl -mr-32 -mt-32"></div>
                 <div className="relative flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="space-y-2">
                         <h4 className="text-xl font-black text-foreground">Operasyonel Verimlilik</h4>

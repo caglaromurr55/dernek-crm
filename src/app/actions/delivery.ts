@@ -8,6 +8,79 @@ import { recalculateHouseholdScore } from "@/lib/scoring";
 import { promises as fs } from "fs";
 import path from "path";
 
+export async function createManualDeliveryAction(
+    householdId: string,
+    distributionEventId: string,
+    notes?: string
+) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Unauthorized" };
+
+    try {
+        let dbDelivery: any = null;
+
+        await prisma.$transaction(async (tx: any) => {
+            const event = await tx.distributionEvent.findUnique({
+                where: { id: distributionEventId }
+            });
+
+            if (!event) throw new Error("Kampanya bulunamadı.");
+
+            const delivery = await tx.delivery.create({
+                data: {
+                    householdId,
+                    distributionEventId,
+                    status: "DELIVERED",
+                    deliveredAt: new Date(),
+                    deliveredBy: session.user?.name || "Bilinmeyen Görevli (Manuel)",
+                    notes: notes || "Manuel Teslimat",
+                }
+            });
+            dbDelivery = delivery;
+
+            if (event.itemId) {
+                await tx.item.update({
+                    where: { id: event.itemId },
+                    data: { stock: { decrement: 1 } }
+                });
+
+                await tx.inventory.create({
+                    data: {
+                        itemId: event.itemId,
+                        type: "OUT",
+                        quantity: 1,
+                        reason: `Manuel Dağıtım: ${event.name} (Delivery ID: ${delivery.id})`,
+                    }
+                });
+            }
+
+            await tx.household.update({
+                where: { id: householdId },
+                data: {
+                    lastAidDate: new Date(),
+                }
+            });
+        }, {
+            maxWait: 5000,
+            timeout: 10000
+        });
+
+        if (dbDelivery) {
+            await recalculateHouseholdScore(householdId);
+            await createAuditLog("CREATE_MANUAL_DELIVERY", "DELIVERY", dbDelivery.id, { event: distributionEventId, household: householdId });
+        }
+
+        revalidatePath("/haneler");
+        revalidatePath(`/haneler/${householdId}`);
+        revalidatePath("/dagitim");
+
+        return { success: true, message: "Manuel teslimat başarıyla kaydedildi." };
+    } catch (error: any) {
+        console.error("Manuel teslimat hatası:", error);
+        return { success: false, message: error.message || "Teslimat kaydedilirken bir hata oluştu." };
+    }
+}
+
 export async function completeDeliveryAction(formData: FormData) {
     const session = await auth();
     if (!session) return { success: false, message: "Unauthorized" };

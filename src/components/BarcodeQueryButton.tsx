@@ -13,7 +13,7 @@ export function BarcodeQueryButton() {
             <Button
                 variant="outline"
                 onClick={() => setOpen(true)}
-                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                className="h-11 border-emerald-600/30 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold px-3 md:px-5 shadow-sm rounded-2xl transition-all whitespace-nowrap"
             >
                 <ScanBarcode className="mr-2 h-4 w-4" />
                 Hızlı Sorgula (Barkod)

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Clock, XCircle, MapPin, Phone } from "lucide-react";
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,7 @@ export default async function DagitimDetayPage({ params }: { params: Promise<{ i
     }
 
     const totalDeliveries = event.deliveries.length;
-    const totalDelivered = event.deliveries.filter(d => d.status === "DELIVERED").length;
+    const totalDelivered = event.deliveries.filter((d: any) => d.status === "DELIVERED").length;
     const totalProgress = totalDeliveries > 0 ? (totalDelivered / totalDeliveries) * 100 : 0;
 
     return (
@@ -104,78 +105,89 @@ export default async function DagitimDetayPage({ params }: { params: Promise<{ i
             </div>
 
             <div className="space-y-4">
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1">
                         <h2 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
                             DAĞITIM LİSTELERİ
                         </h2>
                         <p className="text-muted-foreground text-sm font-medium">Bu kampanya kapsamında oluşturulan alt çalışma listeleri.</p>
                     </div>
+                    
+                    {/* Field Mode Indicator */}
+                    <div className="bg-zinc-900 text-white px-5 py-3 rounded-2xl shadow-lg flex items-center gap-3 w-fit shrink-0">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <p className="text-xs font-black uppercase tracking-widest">Saha Takip Modu Aktif</p>
+                        <div className="w-px h-4 bg-zinc-700"></div>
+                        <p className="text-[10px] font-bold text-zinc-400">Anlık durum güncellemeleri açık.</p>
+                    </div>
                 </div>
 
                 <div className="glass-card rounded-3xl shadow-2xl border-0 overflow-hidden">
-                    <Table>
-                        <TableHeader className="bg-secondary/50">
-                            <TableRow className="hover:bg-transparent border-border">
-                                <TableHead className="font-bold text-muted-foreground py-5 pl-8">LİSTE ADI / SORUMLU</TableHead>
-                                <TableHead className="font-bold text-muted-foreground py-5 text-center">HANE SAYISI</TableHead>
-                                <TableHead className="font-bold text-muted-foreground py-5">İLERLEME DURUMU</TableHead>
-                                <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">TAKİP</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {event.lists.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-20">
-                                        <div className="flex flex-col items-center justify-center opacity-30 gap-3">
-                                            <p className="font-bold text-lg">Bu kampanyada henüz bir liste oluşturulmadı.</p>
-                                        </div>
-                                    </TableCell>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader className="bg-secondary/50">
+                                <TableRow className="hover:bg-transparent border-border">
+                                    <TableHead className="font-bold text-muted-foreground py-5 pl-8">LİSTE ADI / SORUMLU</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground py-5 text-center">HANE SAYISI</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground py-5">İLERLEME DURUMU</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">TAKİP</TableHead>
                                 </TableRow>
-                            ) : (
-                                event.lists.map((list) => {
-                                    const listDelivered = list.deliveries.filter(d => d.status === "DELIVERED").length;
-                                    const listTotal = list._count.deliveries;
-                                    const listPercent = listTotal > 0 ? (listDelivered / listTotal) * 100 : 0;
+                            </TableHeader>
+                            <TableBody>
+                                {event.lists.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center py-20">
+                                            <div className="flex flex-col items-center justify-center opacity-30 gap-3">
+                                                <p className="font-bold text-lg">Bu kampanyada henüz bir liste oluşturulmadı.</p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    event.lists.map((list: any) => {
+                                        const listDelivered = list.deliveries.filter((d: any) => d.status === "DELIVERED").length;
+                                        const listTotal = list._count.deliveries;
+                                        const listPercent = listTotal > 0 ? (listDelivered / listTotal) * 100 : 0;
 
-                                    return (
-                                        <TableRow key={list.id} className="group hover:bg-secondary transition-all border-border/50">
-                                            <TableCell className="py-5 pl-8 font-bold text-foreground group-hover:text-emerald-700 transition-colors">
-                                                {list.name || `Liste - ${list.id.slice(0, 8)}`}
-                                                <div className="text-[10px] text-muted-foreground font-black uppercase mt-1 tracking-tighter">Oluşturulma: {list.createdAt.toLocaleDateString('tr-TR')}</div>
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge variant="secondary" className="bg-secondary font-black px-3 rounded-lg border-0">{listTotal} HANE</Badge>
-                                            </TableCell>
-                                            <TableCell className="min-w-[200px]">
-                                                <div className="space-y-2">
-                                                    <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
-                                                        <span>{listDelivered} / {listTotal} TESLİMAT</span>
-                                                        <span>%{Math.round(listPercent)}</span>
+                                        return (
+                                            <TableRow key={list.id} className="group hover:bg-secondary transition-all border-border/50">
+                                                <TableCell className="py-5 pl-8 font-bold text-foreground group-hover:text-emerald-700 transition-colors">
+                                                    {list.name || `Liste - ${list.id.slice(0, 8)}`}
+                                                    <div className="text-[10px] text-muted-foreground font-black uppercase mt-1 tracking-tighter">Oluşturulma: {list.createdAt.toLocaleDateString('tr-TR')}</div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge variant="secondary" className="bg-secondary font-black px-3 rounded-lg border-0">{listTotal} HANE</Badge>
+                                                </TableCell>
+                                                <TableCell className="min-w-[200px]">
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
+                                                            <span>{listDelivered} / {listTotal} TESLİMAT</span>
+                                                            <span>%{Math.round(listPercent)}</span>
+                                                        </div>
+                                                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-emerald-500 transition-all duration-500"
+                                                                style={{ width: `${listPercent}%` }}
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-emerald-500 transition-all duration-500"
-                                                            style={{ width: `${listPercent}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right pr-8">
-                                                <Link href={`/dagitim/liste/${list.id}`}>
-                                                    <Button variant="ghost" size="sm" className="rounded-xl group-hover:bg-white group-hover:shadow-sm font-bold text-emerald-700">
-                                                        Detayları Gör <ArrowLeft className="ml-1 h-3.5 w-3.5 rotate-180" />
-                                                    </Button>
-                                                </Link>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
+                                                </TableCell>
+                                                <TableCell className="text-right pr-8">
+                                                    <Link href={`/dagitim/liste/${list.id}`}>
+                                                        <Button variant="ghost" size="sm" className="rounded-xl group-hover:bg-white group-hover:shadow-sm font-bold text-emerald-700">
+                                                            Detayları Gör <ArrowLeft className="ml-1 h-3.5 w-3.5 rotate-180" />
+                                                        </Button>
+                                                    </Link>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
             </div>
+
         </div>
     );
 }

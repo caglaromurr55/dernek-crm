@@ -42,6 +42,9 @@ export default function HanelerSearchForm({
             params.delete("status");
         }
 
+        // Yeni arama veya filtreleme yapıldığında 1. sayfaya dön
+        params.delete("page");
+
         startTransition(() => {
             router.push(`${pathname}?${params.toString()}`);
         });

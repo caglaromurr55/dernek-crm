@@ -14,9 +14,16 @@ import {
     DialogFooter
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserPlus, Camera, RefreshCw, HeartPulse, GraduationCap, X } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
+import { UserPlus, Camera, RefreshCw, HeartPulse, GraduationCap, Accessibility, Save } from "lucide-react";
 import { addPersonAction } from "@/app/actions/household";
-import { MrzScanner } from "./MrzScanner";
+import { ExternalMrzScanner } from "./ExternalMrzScanner";
 import { toast } from "sonner";
 
 interface PersonAddModalProps {
@@ -25,7 +32,6 @@ interface PersonAddModalProps {
 
 export function PersonAddModal({ householdId }: PersonAddModalProps) {
     const [open, setOpen] = useState(false);
-    const [scannerOpen, setScannerOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -33,12 +39,19 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
         lastName: "",
         identityNo: "",
         birthDate: "",
+        gender: "ERK",
+        educationalLevel: "ilkokul",
+        employmentStatus: "issiz",
+        maritalStatus: "bekar",
+        monthlyIncome: "0",
         isStudent: false,
         isDisabled: false,
         hasChronicIllness: false
     });
 
-    const handleScan = (data: any) => {
+    const handleScan = (dataArray: any[]) => {
+        if (!Array.isArray(dataArray) || dataArray.length === 0) return;
+        const data = dataArray[0];
         setFormData(prev => ({
             ...prev,
             firstName: data.firstName || prev.firstName,
@@ -46,7 +59,6 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
             identityNo: data.identityNo || prev.identityNo,
             birthDate: data.birthDate || prev.birthDate
         }));
-        setTimeout(() => setScannerOpen(false), 1500);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -64,6 +76,11 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
                 lastName: "",
                 identityNo: "",
                 birthDate: "",
+                gender: "ERK",
+                educationalLevel: "ilkokul",
+                employmentStatus: "issiz",
+                maritalStatus: "bekar",
+                monthlyIncome: "0",
                 isStudent: false,
                 isDisabled: false,
                 hasChronicIllness: false
@@ -83,27 +100,25 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
                         <UserPlus className="mr-2 h-4 w-4" /> Yeni Sakin Ekle
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md glass-card border-border/10 p-0 overflow-hidden shadow-2xl">
+                <DialogContent className="sm:max-w-[600px] glass-card border-border/10 p-0 overflow-hidden shadow-2xl z-50">
                     <div className="bg-emerald-600 p-6 text-white relative">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl font-black text-white">Hane Sakini Ekle</DialogTitle>
-                            <DialogDescription className="text-emerald-100 font-medium">
-                                Yeni bireyin bilgilerini girin veya kimlik taratın.
+                        <DialogHeader className="relative z-10">
+                            <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+                                <UserPlus className="w-5 h-5" />
+                                Hane Sakini Ekle
+                            </DialogTitle>
+                            <DialogDescription className="text-emerald-100 font-medium text-sm mt-1">
+                                Yeni bireyin temel bilgilerini girin veya kimlik kartını taratın.
                             </DialogDescription>
                         </DialogHeader>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                        <div className="flex justify-end">
-                            <Button
-                                type="button"
-                                onClick={() => setScannerOpen(true)}
-                                variant="outline"
-                                size="sm"
-                                className="text-xs bg-secondary border-muted-foreground/10 text-emerald-500 hover:bg-secondary/80 rounded-xl"
-                            >
-                                <Camera className="mr-2 h-3.5 w-3.5" /> Kimlik Kartı Tara (MRZ)
-                            </Button>
+                    <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-sm font-bold text-foreground">Kişisel Bilgiler</h3>
+                            <div className="flex items-center gap-2">
+                                <ExternalMrzScanner onScan={handleScan} />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -123,39 +138,94 @@ export function PersonAddModal({ householdId }: PersonAddModalProps) {
                                 <Label className="text-[10px] font-black text-muted-foreground uppercase">DOĞUM TARİHİ</Label>
                                 <Input type="date" value={formData.birthDate} onChange={e => setFormData({ ...formData, birthDate: e.target.value })} className="h-10 border-border bg-secondary/30 focus:border-emerald-500/50" />
                             </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">CİNSİYET</Label>
+                                <Select value={formData.gender} onValueChange={(val) => setFormData({ ...formData, gender: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="KAD">Kadın</SelectItem>
+                                        <SelectItem value="ERK">Erkek</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">EĞİTİM</Label>
+                                <Select value={formData.educationalLevel} onValueChange={(val) => setFormData({ ...formData, educationalLevel: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="okuryazar_degil">Okuryazar Değil</SelectItem>
+                                        <SelectItem value="ilkokul">İlkokul</SelectItem>
+                                        <SelectItem value="ortaokul">Ortaokul</SelectItem>
+                                        <SelectItem value="lise">Lise</SelectItem>
+                                        <SelectItem value="universite">Üniversite</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">MEDENİ DURUM</Label>
+                                <Select value={formData.maritalStatus} onValueChange={(val) => setFormData({ ...formData, maritalStatus: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="bekar">Bekar</SelectItem>
+                                        <SelectItem value="evli">Evli</SelectItem>
+                                        <SelectItem value="bosanmis">Boşanmış</SelectItem>
+                                        <SelectItem value="dul">Dul</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">AYLIK GELİR (₺)</Label>
+                                <Input type="number" value={formData.monthlyIncome} onChange={e => setFormData({ ...formData, monthlyIncome: e.target.value })} className="h-10 border-border bg-secondary/30 focus:border-emerald-500/50" />
+                            </div>
+                            <div className="space-y-1.5 col-span-2">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">ÇALIŞMA DURUMU</Label>
+                                <Select value={formData.employmentStatus} onValueChange={(val) => setFormData({ ...formData, employmentStatus: val })}>
+                                    <SelectTrigger className="h-10 bg-secondary/30 border-border/50 focus:ring-emerald-500/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="calisiyor">Çalışıyor</SelectItem>
+                                        <SelectItem value="issiz">İşsiz</SelectItem>
+                                        <SelectItem value="emekli">Emekli</SelectItem>
+                                        <SelectItem value="ev_hanimi">Ev Hanımı</SelectItem>
+                                        <SelectItem value="ogrenci">Öğrenci</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
-                        <div className="flex gap-4">
-                            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary/50 border border-border flex-1 hover:bg-emerald-500/10 transition-colors cursor-pointer group">
-                                <Checkbox id="isStudent" checked={formData.isStudent} onCheckedChange={(val) => setFormData({ ...formData, isStudent: !!val })} className="w-5 h-5 border-border" />
-                                <Label htmlFor="isStudent" className="text-xs font-bold text-foreground/80 flex items-center gap-1.5 cursor-pointer">
-                                    <GraduationCap className="w-4 h-4 text-muted-foreground group-hover:text-emerald-500" /> Öğrenci
-                                </Label>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div
+                                onClick={() => setFormData({ ...formData, isStudent: !formData.isStudent })}
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-[0.98] ${formData.isStudent ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm shadow-blue-100/50' : 'bg-secondary/20 border-border/30 text-muted-foreground'}`}
+                            >
+                                <GraduationCap className={`w-5 h-5 mb-1.5 transition-colors ${formData.isStudent ? 'text-blue-600' : 'group-hover:text-blue-400'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-tighter">Öğrenci</span>
                             </div>
-                            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary/50 border border-border flex-1 hover:bg-red-500/10 transition-colors cursor-pointer group">
-                                <Checkbox id="isDisabled" checked={formData.isDisabled} onCheckedChange={(val) => setFormData({ ...formData, isDisabled: !!val })} className="w-5 h-5 border-border" />
-                                <Label htmlFor="isDisabled" className="text-xs font-bold text-foreground/80 flex items-center gap-1.5 cursor-pointer">
-                                    <HeartPulse className="w-4 h-4 text-muted-foreground group-hover:text-red-500" /> Dezavantajlı
-                                </Label>
+
+                            <div
+                                onClick={() => setFormData({ ...formData, isDisabled: !formData.isDisabled })}
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-[0.98] ${formData.isDisabled ? 'bg-red-50 border-red-200 text-red-700 shadow-sm shadow-red-100/50' : 'bg-secondary/20 border-border/30 text-muted-foreground'}`}
+                            >
+                                <Accessibility className={`w-5 h-5 mb-1.5 transition-colors ${formData.isDisabled ? 'text-red-600' : 'group-hover:text-red-400'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-tighter">Engelli</span>
+                            </div>
+
+                            <div
+                                onClick={() => setFormData({ ...formData, hasChronicIllness: !formData.hasChronicIllness })}
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-[0.98] ${formData.hasChronicIllness ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm shadow-amber-100/50' : 'bg-secondary/20 border-border/30 text-muted-foreground'}`}
+                            >
+                                <HeartPulse className={`w-5 h-5 mb-1.5 transition-colors ${formData.hasChronicIllness ? 'text-amber-600' : 'group-hover:text-amber-400'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-tighter">Kronik</span>
                             </div>
                         </div>
 
-                        <DialogFooter className="pt-4 gap-2">
-                            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting} className="rounded-xl hover:bg-secondary">İptal</Button>
-                            <Button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 rounded-xl shadow-lg shadow-emerald-500/10 border-0">
-                                {isSubmitting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                {isSubmitting ? "Ekleniyor..." : "Haneye Sakin Ekle"}
+                        <DialogFooter className="pt-4 gap-2 border-t border-border mt-2">
+                            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting} className="rounded-md hover:bg-secondary w-full sm:w-auto">İptal</Button>
+                            <Button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 rounded-md shadow-md border-0 w-full sm:w-auto transition-all active:scale-95">
+                                {isSubmitting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                {isSubmitting ? "Ekleniyor..." : "Kaydet"}
                             </Button>
                         </DialogFooter>
                     </form>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 text-white border-zinc-800 p-0 overflow-hidden shadow-2xl">
-                    <DialogTitle className="sr-only">Kimlik Tarayıcı Kamera İzleme</DialogTitle>
-                    <DialogDescription className="sr-only">Lütfen kimliğinizin MRZ alanını kameraya okutun.</DialogDescription>
-                    <MrzScanner onScan={handleScan} onClose={() => setScannerOpen(false)} />
                 </DialogContent>
             </Dialog>
         </>

@@ -3,8 +3,25 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
+import { auth } from "@/auth";
+
+export async function getActiveDistributionEventsAction() {
+    try {
+        const events = await (prisma as any).distributionEvent.findMany({
+            where: { status: "ACTIVE" },
+            orderBy: { createdAt: "desc" },
+            include: { item: true }
+        });
+        return { success: true, data: events };
+    } catch (e) {
+        return { success: false, message: "Kampanyalar getirilirken hata oluştu." };
+    }
+}
 
 export async function createDistributionEventAction(formData: FormData) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Unauthorized: Bu işlemi yapmaya yetkiniz yok." };
+
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
     const itemId = formData.get("itemId") as string;
@@ -21,6 +38,17 @@ export async function createDistributionEventAction(formData: FormData) {
     const totalTarget = parseInt(formData.get("totalTarget") as string || "50", 10);
     const perListCount = parseInt(formData.get("perListCount") as string || "10", 10);
 
+    // Gelişmiş Filtreler
+    const childAgeMinStr = formData.get("childAgeMin") as string;
+    const childAgeMaxStr = formData.get("childAgeMax") as string;
+    let childAgeMin = childAgeMinStr ? parseInt(childAgeMinStr, 10) : null;
+    let childAgeMax = childAgeMaxStr ? parseInt(childAgeMaxStr, 10) : null;
+
+    const assignBoutiquePoints = formData.get("assignBoutiquePoints") === "on";
+    const boutiquePointsAmountStr = formData.get("boutiquePointsAmount") as string;
+    const boutiquePointsAmount = boutiquePointsAmountStr ? parseInt(boutiquePointsAmountStr, 10) : 0;
+
+
     try {
         const cooldownDate = new Date();
         cooldownDate.setDate(cooldownDate.getDate() - cooldownDays);
@@ -34,18 +62,43 @@ export async function createDistributionEventAction(formData: FormData) {
                 statusFilter = "APPROVED";
             }
         }
+        // Yaş Filtresi
+        let personsFilter: any = undefined;
+        if (childAgeMin !== null || childAgeMax !== null) {
+            const today = new Date();
+            let gtDate: Date | undefined;
+            let lteDate: Date | undefined;
+
+            if (childAgeMax !== null) {
+                gtDate = new Date(today);
+                gtDate.setFullYear(today.getFullYear() - (childAgeMax + 1));
+            }
+            if (childAgeMin !== null) {
+                lteDate = new Date(today);
+                lteDate.setFullYear(today.getFullYear() - childAgeMin);
+            }
+            personsFilter = {
+                some: {
+                    birthDate: {
+                        ...(gtDate ? { gt: gtDate } : {}),
+                        ...(lteDate ? { lte: lteDate } : {})
+                    }
+                }
+            };
+        }
 
         const targetHouseholds = await (prisma as any).household.findMany({
             where: {
                 score: { gte: minScore },
                 ...(onlyApproved ? { status: statusFilter } : {}),
-                ...(mahalle && mahalle !== "ALL" ? { address: { contains: mahalle, mode: "insensitive" } } : {}),
+                ...(mahalle && mahalle !== "ALL" ? { address: { startsWith: mahalle } } : {}),
+                ...(personsFilter ? { persons: personsFilter } : {}),
                 OR: [
                     { lastAidDate: null },
                     { lastAidDate: { lte: cooldownDate } }
                 ]
             },
-            select: { id: true },
+            select: { id: true, address: true },
             orderBy: { score: "desc" },
             take: totalTarget
         });
@@ -66,46 +119,74 @@ export async function createDistributionEventAction(formData: FormData) {
                 }
             });
 
-            // 2. Haneleri parçalara ayır (chunking)
-            const chunks = [];
-            for (let i = 0; i < targetHouseholds.length; i += perListCount) {
-                chunks.push(targetHouseholds.slice(i, i + perListCount));
-            }
+            // 2. Haneleri Mahallelerine (Lokasyonlarına) göre gruplandır
+            const groupedByNeighborhood: Record<string, typeof targetHouseholds> = {};
+            targetHouseholds.forEach((h: any) => {
+                const parts = (h.address || "").split(" - ");
+                const n = parts.length > 0 ? parts[0].trim() : "Bilinmeyen Mahalle";
+                if (!groupedByNeighborhood[n]) groupedByNeighborhood[n] = [];
+                groupedByNeighborhood[n].push(h);
+            });
 
             let deliveryCount = 0;
+            let listCount = 0;
 
-            // 3. Her parça için bir liste oluştur ve teslimatları ekle
-            for (let i = 0; i < chunks.length; i++) {
-                const chunk = chunks[i];
-                const list = await tx.distributionList.create({
-                    data: {
-                        name: `${name} - Liste ${i + 1}`,
-                        token: randomUUID(),
+            // 3. Her mahalle grubu için ayrı chunk'lama yap ve listeleri oluştur
+            for (const [nbh, hList] of Object.entries(groupedByNeighborhood)) {
+                // Bu mahalleye ait olan haneleri perListCount'a göre parçala (chunk)
+                const chunks = [];
+                for (let i = 0; i < hList.length; i += perListCount) {
+                    chunks.push(hList.slice(i, i + perListCount));
+                }
+
+                for (let i = 0; i < chunks.length; i++) {
+                    const chunk = chunks[i];
+                    listCount++;
+
+                    const listName = `${name} - ${nbh} - Liste ${i + 1}`;
+                    const list = await tx.distributionList.create({
+                        data: {
+                            name: listName,
+                            token: randomUUID(),
+                            distributionEventId: event.id,
+                        }
+                    });
+
+                    const deliveriesData = chunk.map((cHousehold: any) => ({
                         distributionEventId: event.id,
-                    }
-                });
+                        distributionListId: list.id,
+                        householdId: cHousehold.id,
+                        status: "PENDING"
+                    }));
 
-                const deliveriesData = chunk.map((h: any) => ({
-                    distributionEventId: event.id,
-                    distributionListId: list.id,
-                    householdId: h.id,
-                    status: "PENDING"
-                }));
+                    await tx.delivery.createMany({
+                        data: deliveriesData
+                    });
 
-                await tx.delivery.createMany({
-                    data: deliveriesData
-                });
-
-                deliveryCount += deliveriesData.length;
+                    deliveryCount += deliveriesData.length;
+                }
             }
 
-            return { eventId: event.id, count: deliveryCount };
-        }, { maxWait: 10000, timeout: 30000 });
+            // 4. Butik Kredisi Tanımlama
+            if (assignBoutiquePoints && boutiquePointsAmount > 0) {
+                const assignedHouseholdIds = targetHouseholds.map((h: any) => h.id);
+                if (assignedHouseholdIds.length > 0) {
+                    await tx.household.updateMany({
+                        where: { id: { in: assignedHouseholdIds } },
+                        data: {
+                            boutiqueBalance: { increment: boutiquePointsAmount }
+                        }
+                    });
+                }
+            }
+
+            return { eventId: event.id, count: deliveryCount, listCount };
+        }, { maxWait: 15000, timeout: 30000 });
 
         revalidatePath("/dagitim");
         return {
             success: true,
-            message: `Başarılı! ${result.count} hane için ${Math.ceil(result.count / perListCount)} ayrı liste oluşturuldu.`,
+            message: `Başarılı! ${result.count} hane için mahalle bazlı ${result.listCount} ayrı liste oluşturuldu.`,
             eventId: result.eventId
         };
 
@@ -116,6 +197,9 @@ export async function createDistributionEventAction(formData: FormData) {
 }
 
 export async function updateDeliveryStatusAction(deliveryId: string, status: string, notes?: string) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Unauthorized: Oturum bulunamadı." };
+
     try {
         let dbDelivery: any = null;
 

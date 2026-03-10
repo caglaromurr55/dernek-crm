@@ -12,8 +12,15 @@ export async function createHouseholdAction(formData: FormData) {
     if (!session) throw new Error("Unauthorized");
 
     const mahalle = formData.get("mahalle") as string;
+    const sokak = formData.get("sokak") as string;
+    const binaNo = formData.get("binaNo") as string;
+    const kat = formData.get("kat") as string;
+    const daire = formData.get("daire") as string;
+    const addressDetail = formData.get("addressDetail") as string;
     const telefon = formData.get("telefon") as string;
-    const adres = formData.get("adres") as string;
+    
+    // Legacy tam adres derlemesi
+    const adres = `${mahalle || ""} ${sokak || ""}, Bina: ${binaNo || "-"}, Kat: ${kat || "-"}, Daire: ${daire || "-"} ${addressDetail ? `(${addressDetail})` : ""}`;
 
     // Sosyo-Ekonomik Veriler
     const rentStatus = formData.get("kira") as string;
@@ -26,6 +33,28 @@ export async function createHouseholdAction(formData: FormData) {
     const heatingType = formData.get("heatingType") as string || "dogalgaz";
     const carOwnership = formData.get("carOwnership") === "true";
     const estateOwnership = formData.get("estateOwnership") === "true";
+
+    const foodExpense = parseInt((formData.get("foodExpense") as string) || "0", 10);
+    const educationExpense = parseInt((formData.get("educationExpense") as string) || "0", 10);
+    const billExpense = parseInt((formData.get("billExpense") as string) || "0", 10);
+    const healthExpense = parseInt((formData.get("healthExpense") as string) || "0", 10);
+    const otherExpense = parseInt((formData.get("otherExpense") as string) || "0", 10);
+    const socialAidAmount = parseInt((formData.get("socialAidAmount") as string) || "0", 10);
+
+    const heatingExpense = parseInt((formData.get("heatingExpense") as string) || "0", 10);
+    const clothingExpense = parseInt((formData.get("clothingExpense") as string) || "0", 10);
+    const transportationExpense = parseInt((formData.get("transportationExpense") as string) || "0", 10);
+    const babyExpense = parseInt((formData.get("babyExpense") as string) || "0", 10);
+
+    const roofCondition = formData.get("roofCondition") as string || null;
+    const waterDamage = formData.get("waterDamage") === "true";
+    const furnitureCondition = formData.get("furnitureCondition") as string || null;
+    const hasInternet = formData.get("hasInternet") === "true";
+    const hasWashingMachine = formData.get("hasWashingMachine") === "true";
+    const hasRefrigerator = formData.get("hasRefrigerator") === "true";
+
+    const notes = formData.get("notes") as string || null;
+    const diseaseDetails = formData.get("diseaseDetails") as string || null;
 
     // Dinamik Hane Sakinleri (V4)
     // Form verilerinden "person_json" adında bir array bekliyoruz veya manuel parse edeceğiz
@@ -43,12 +72,23 @@ export async function createHouseholdAction(formData: FormData) {
     const identityNo = formData.get("identityNo") as string;
     const birthDateValue = formData.get("birthDate") as string;
     const birthDate = birthDateValue ? new Date(birthDateValue) : null;
+    const gender = formData.get("gender") as string || null;
+    const educationalLevel = formData.get("educationalLevel") as string || null;
+    const maritalStatus = formData.get("maritalStatus") as string || null;
+    const employmentStatus = formData.get("employmentStatus") as string || null;
+    const pMonthlyIncome = parseInt((formData.get("pMonthlyIncome") as string) || "0", 10);
 
     try {
         const newHousehold = await (prisma as any).$transaction(async (tx: any) => {
             const hane = await tx.household.create({
                 data: {
-                    address: `${mahalle} - ${adres}`,
+                    address: adres.trim(),
+                    mahalle,
+                    sokak,
+                    binaNo,
+                    kat,
+                    daire,
+                    addressDetail,
                     contactNumber: telefon,
                     status: "PENDING",
                     score: 0,
@@ -60,6 +100,24 @@ export async function createHouseholdAction(formData: FormData) {
                     estateOwnership,
                     debtAmount,
                     heatingType,
+                    foodExpense,
+                    educationExpense,
+                    billExpense,
+                    healthExpense,
+                    otherExpense,
+                    socialAidAmount,
+                    heatingExpense,
+                    clothingExpense,
+                    transportationExpense,
+                    babyExpense,
+                    roofCondition,
+                    waterDamage,
+                    furnitureCondition,
+                    hasInternet,
+                    hasWashingMachine,
+                    hasRefrigerator,
+                    notes,
+                    diseaseDetails,
                 },
             });
 
@@ -71,6 +129,11 @@ export async function createHouseholdAction(formData: FormData) {
                     lastName,
                     identityNo,
                     birthDate,
+                    gender,
+                    educationalLevel,
+                    maritalStatus,
+                    employmentStatus,
+                    monthlyIncome: pMonthlyIncome,
                     isApplicant: true,
                 },
             });
@@ -84,6 +147,11 @@ export async function createHouseholdAction(formData: FormData) {
                         lastName: p.lastName,
                         identityNo: p.identityNo,
                         birthDate: p.birthDate ? new Date(p.birthDate) : null,
+                        gender: p.gender || null,
+                        educationalLevel: p.educationalLevel || null,
+                        maritalStatus: p.maritalStatus || null,
+                        employmentStatus: p.employmentStatus || null,
+                        monthlyIncome: p.monthlyIncome ? parseInt(p.monthlyIncome, 10) : 0,
                         isStudent: !!p.isStudent,
                         isDisabled: !!p.isDisabled,
                         hasChronicIllness: !!p.hasChronicIllness,
@@ -127,6 +195,28 @@ export async function updateHouseholdAction(id: string, formData: FormData) {
     const carOwnership = formData.get("carOwnership") === "true";
     const estateOwnership = formData.get("estateOwnership") === "true";
 
+    const foodExpense = parseInt((formData.get("foodExpense") as string) || "0", 10);
+    const educationExpense = parseInt((formData.get("educationExpense") as string) || "0", 10);
+    const billExpense = parseInt((formData.get("billExpense") as string) || "0", 10);
+    const healthExpense = parseInt((formData.get("healthExpense") as string) || "0", 10);
+    const otherExpense = parseInt((formData.get("otherExpense") as string) || "0", 10);
+    const socialAidAmount = parseInt((formData.get("socialAidAmount") as string) || "0", 10);
+
+    const heatingExpense = parseInt((formData.get("heatingExpense") as string) || "0", 10);
+    const clothingExpense = parseInt((formData.get("clothingExpense") as string) || "0", 10);
+    const transportationExpense = parseInt((formData.get("transportationExpense") as string) || "0", 10);
+    const babyExpense = parseInt((formData.get("babyExpense") as string) || "0", 10);
+
+    const roofCondition = formData.get("roofCondition") as string || null;
+    const waterDamage = formData.get("waterDamage") === "true";
+    const furnitureCondition = formData.get("furnitureCondition") as string || null;
+    const hasInternet = formData.get("hasInternet") === "true";
+    const hasWashingMachine = formData.get("hasWashingMachine") === "true";
+    const hasRefrigerator = formData.get("hasRefrigerator") === "true";
+
+    const notes = formData.get("notes") as string || null;
+    const diseaseDetails = formData.get("diseaseDetails") as string || null;
+
     try {
         await (prisma as any).household.update({
             where: { id },
@@ -141,6 +231,24 @@ export async function updateHouseholdAction(id: string, formData: FormData) {
                 estateOwnership,
                 debtAmount,
                 heatingType,
+                foodExpense,
+                educationExpense,
+                billExpense,
+                healthExpense,
+                otherExpense,
+                socialAidAmount,
+                heatingExpense,
+                clothingExpense,
+                transportationExpense,
+                babyExpense,
+                roofCondition,
+                waterDamage,
+                furnitureCondition,
+                hasInternet,
+                hasWashingMachine,
+                hasRefrigerator,
+                notes,
+                diseaseDetails,
             }
         });
 
@@ -148,6 +256,7 @@ export async function updateHouseholdAction(id: string, formData: FormData) {
         await createAuditLog("UPDATE", "HOUSEHOLD", id, { action: "Information Updated" });
 
         revalidatePath(`/haneler/${id}`);
+        revalidatePath(`/haneler/${id}/duzenle`);
         revalidatePath("/haneler");
         return { success: true };
     } catch (error) {
@@ -161,6 +270,20 @@ export async function addPersonAction(householdId: string, personData: any) {
     if (!session) return { success: false, error: "Unauthorized" };
 
     try {
+        if (personData.identityNo) {
+            const existingPerson = await prisma.person.findUnique({
+                where: { identityNo: personData.identityNo },
+                select: { id: true, firstName: true, lastName: true }
+            });
+
+            if (existingPerson) {
+                return {
+                    success: false,
+                    error: `Bu TC Kimlik Numarası sistemde kayıtlı: ${existingPerson.firstName} ${existingPerson.lastName}`
+                };
+            }
+        }
+
         await (prisma as any).person.create({
             data: {
                 householdId,
@@ -168,6 +291,11 @@ export async function addPersonAction(householdId: string, personData: any) {
                 lastName: personData.lastName,
                 identityNo: personData.identityNo,
                 birthDate: personData.birthDate ? new Date(personData.birthDate) : null,
+                gender: personData.gender || null,
+                educationalLevel: personData.educationalLevel || null,
+                maritalStatus: personData.maritalStatus || null,
+                employmentStatus: personData.employmentStatus || null,
+                monthlyIncome: personData.monthlyIncome ? parseInt(personData.monthlyIncome, 10) : 0,
                 isStudent: !!personData.isStudent,
                 isDisabled: !!personData.isDisabled,
                 hasChronicIllness: !!personData.hasChronicIllness,
@@ -179,12 +307,67 @@ export async function addPersonAction(householdId: string, personData: any) {
         await createAuditLog("CREATE", "PERSON", householdId, { name: `${personData.firstName} ${personData.lastName}` });
 
         revalidatePath(`/haneler/${householdId}`);
+        revalidatePath(`/haneler/${householdId}/duzenle`);
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Sakin ekleme hatası:", error);
-        return { success: false, error: "Sakin eklenemedi. TC Kimlik No kayıtlı olabilir." };
+        return { success: false, error: "Kayıt Hatası: " + (error?.message || "Bilinmeyen bir hata oluştu.") };
     }
 }
+
+export async function updatePersonAction(householdId: string, personId: string, personData: any) {
+    const session = await auth();
+    if (!session) return { success: false, error: "Unauthorized" };
+
+    try {
+        // Hata ayıklama: Gerçekten TC kimlik ile çelişen başka biri var mı kontrol et
+        if (personData.identityNo) {
+            const existingPerson = await prisma.person.findUnique({
+                where: { identityNo: personData.identityNo },
+                select: { id: true, firstName: true, lastName: true }
+            });
+
+            if (existingPerson && existingPerson.id !== personId) {
+                return {
+                    success: false,
+                    error: `Bu TC Kimlik Numarası başka bir kişi üzerine kayıtlı: ${existingPerson.firstName} ${existingPerson.lastName}`
+                };
+            }
+        }
+
+        await prisma.person.update({
+            where: { id: personId }, // householdId kaldırdık, sadece id benzersiz olması yeterli
+            data: {
+                firstName: personData.firstName,
+                lastName: personData.lastName,
+                identityNo: personData.identityNo,
+                birthDate: personData.birthDate ? new Date(personData.birthDate) : null,
+                gender: personData.gender || null,
+                educationalLevel: personData.educationalLevel || null,
+                maritalStatus: personData.maritalStatus || null,
+                employmentStatus: personData.employmentStatus || null,
+                monthlyIncome: personData.monthlyIncome ? parseInt(personData.monthlyIncome, 10) : 0,
+                isStudent: !!personData.isStudent,
+                isDisabled: !!personData.isDisabled,
+                hasChronicIllness: !!personData.hasChronicIllness
+            }
+        });
+
+        await recalculateHouseholdScore(householdId);
+        await createAuditLog("UPDATE", "PERSON", householdId, {
+            name: `${personData.firstName} ${personData.lastName}`,
+            personId
+        });
+
+        revalidatePath(`/haneler/${householdId}`);
+        revalidatePath(`/haneler/${householdId}/duzenle`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Sakin güncelleme hatası:", error);
+        return { success: false, error: "Veritabanı Kayıt Hatası: " + (error?.message || "Bilinmeyen bir hata oluştu.") };
+    }
+}
+
 
 export async function removePersonAction(householdId: string, personId: string) {
     const session = await auth();

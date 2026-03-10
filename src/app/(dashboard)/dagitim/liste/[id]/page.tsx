@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Phone, User as UserIcon, CheckCircle2, AlertTriangle } from "lucide-react";
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import { DistributionListPDFButton } from "@/components/export/DistributionListP
 export default async function ListeDetayPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
-    const list = await prisma.distributionList.findUnique({
+    const list: any = await prisma.distributionList.findUnique({
         where: { id },
         include: {
             distributionEvent: {
@@ -45,7 +46,7 @@ export default async function ListeDetayPage({ params }: { params: Promise<{ id:
         notFound();
     }
 
-    const deliveredCount = list.deliveries.filter(d => d.status === "DELIVERED").length;
+    const deliveredCount = list.deliveries.filter((d: any) => d.status === "DELIVERED").length;
     const totalCount = list.deliveries.length;
     const progressPercent = totalCount > 0 ? (deliveredCount / totalCount) * 100 : 0;
 
@@ -109,83 +110,76 @@ export default async function ListeDetayPage({ params }: { params: Promise<{ id:
             </div>
 
             <div className="glass-card rounded-3xl shadow-2xl border-0 overflow-hidden">
-                <Table>
-                    <TableHeader className="bg-secondary/50">
-                        <TableRow className="hover:bg-transparent border-border">
-                            <TableHead className="font-bold text-muted-foreground py-5 pl-8">HANE / BAŞVURU SAHİBİ</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5">ADRES & KONUM</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-center">İLETİŞİM</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-center">SKOR</TableHead>
-                            <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">DURUM / AKSİYON</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {list.deliveries.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-20 opacity-30">
-                                    <p className="font-bold text-lg">Bu listede hane bulunmuyor.</p>
-                                </TableCell>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader className="bg-secondary/50">
+                            <TableRow className="hover:bg-transparent border-border">
+                                <TableHead className="font-bold text-muted-foreground py-5 pl-8">HANE / BAŞVURU SAHİBİ</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5">ADRES & KONUM</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-center">İLETİŞİM</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-center">SKOR</TableHead>
+                                <TableHead className="font-bold text-muted-foreground py-5 text-right pr-8">DURUM / AKSİYON</TableHead>
                             </TableRow>
-                        ) : (
-                            list.deliveries.map((delivery) => {
-                                const applicant = delivery.household.persons[0];
-                                return (
-                                    <TableRow key={delivery.id} className="group hover:bg-secondary/50 transition-all border-border/50">
-                                        <TableCell className="py-6 pl-8">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                                                    <UserIcon className="w-5 h-5" />
+                        </TableHeader>
+                        <TableBody>
+                            {list.deliveries.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-20 opacity-30">
+                                        <p className="font-bold text-lg">Bu listede hane bulunmuyor.</p>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                list.deliveries.map((delivery: any) => {
+                                    const applicant = delivery.household.persons[0];
+                                    return (
+                                        <TableRow key={delivery.id} className="group hover:bg-secondary/50 transition-all border-border/50">
+                                            <TableCell className="py-6 pl-8">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                                        <UserIcon className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-foreground uppercase tracking-tighter">
+                                                            {applicant ? `${applicant.firstName} ${applicant.lastName}` : "Bilinmiyor"}
+                                                        </p>
+                                                        <p className="text-[10px] font-bold text-muted-foreground">TC: {applicant?.identityNo || "-"}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-black text-foreground uppercase tracking-tighter">
-                                                        {applicant ? `${applicant.firstName} ${applicant.lastName}` : "Bilinmiyor"}
+                                            </TableCell>
+                                            <TableCell className="max-w-[300px]">
+                                                <div className="flex items-start gap-2">
+                                                    <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                                    <p className="text-xs font-bold text-zinc-600 line-clamp-2" title={delivery.household.address}>
+                                                        {delivery.household.address}
                                                     </p>
-                                                    <p className="text-[10px] font-bold text-muted-foreground">TC: {applicant?.identityNo || "-"}</p>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="max-w-[300px]">
-                                            <div className="flex items-start gap-2">
-                                                <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                                <p className="text-xs font-bold text-zinc-600 line-clamp-2" title={delivery.household.address}>
-                                                    {delivery.household.address}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="flex items-center justify-center gap-1.5 font-black text-xs text-zinc-500 bg-secondary/30 py-1.5 px-3 rounded-xl border border-border/50">
-                                                <Phone className="w-3.5 h-3.5" />
-                                                {delivery.household.contactNumber || "-"}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-zinc-900 text-white font-black text-[10px] shadow-lg">
-                                                {delivery.household.score}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right pr-8">
-                                            <DeliveryStatusButton
-                                                deliveryId={delivery.id}
-                                                currentStatus={delivery.status}
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            {/* Field Mode Indicator */}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-                <div className="bg-zinc-900 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 animate-in-slide-up">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <p className="text-sm font-black uppercase tracking-widest">Saha Takip Modu Aktif</p>
-                    <div className="w-px h-6 bg-zinc-700"></div>
-                    <p className="text-xs font-bold text-zinc-400">Anlık durum güncellemeleri açık.</p>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <div className="flex items-center justify-center gap-1.5 font-black text-xs text-zinc-500 bg-secondary/30 py-1.5 px-3 rounded-xl border border-border/50">
+                                                    <Phone className="w-3.5 h-3.5" />
+                                                    {delivery.household.contactNumber || "-"}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-zinc-900 text-white font-black text-[10px] shadow-lg">
+                                                    {delivery.household.score}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right pr-8">
+                                                <DeliveryStatusButton
+                                                    deliveryId={delivery.id}
+                                                    currentStatus={delivery.status}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
+
         </div>
     );
 }
